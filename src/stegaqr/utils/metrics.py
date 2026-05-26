@@ -176,4 +176,11 @@ def wilson_score_ci(
     center = (p_hat + z**2 / (2 * trials)) / denom
     spread = z * np.sqrt(p_hat * (1 - p_hat) / trials + z**2 / (4 * trials**2)) / denom
 
-    return (max(0.0, center - spread), min(1.0, center + spread))
+    lower = float(max(0.0, center - spread))
+    upper = float(min(1.0, center + spread))
+    # Clamp near-zero floating point artifacts
+    if lower < 1e-10:
+        lower = 0.0
+    if upper > 1.0 - 1e-10:
+        upper = 1.0
+    return (lower, upper)

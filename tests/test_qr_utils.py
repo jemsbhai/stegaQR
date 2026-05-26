@@ -87,30 +87,29 @@ class TestStructureMask:
 class TestQRDecodability:
     """Tests for QR decode verification."""
 
-    def test_standard_qr_decodable(self):
-        """A standard QR image should be decodable by pyzbar."""
+    def _make_decodable_qr(self, payload: str) -> "Image.Image":
+        """Generate a QR code image that pyzbar can reliably decode."""
+        import qrcode
         from PIL import Image
 
-        matrix, _ = generate_qr("hello world", version=4)
-        # Scale up for reliable decoding
-        matrix_scaled = np.kron(matrix, np.ones((10, 10), dtype=np.uint8))
-        # Add white border
-        border = 40
-        h, w = matrix_scaled.shape
-        padded = np.full((h + 2 * border, w + 2 * border), 255, dtype=np.uint8)
-        padded[border : border + h, border : border + w] = matrix_scaled
+        qr = qrcode.QRCode(
+            version=4,
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=10,
+            border=4,  # ISO standard quiet zone
+        )
+        qr.add_data(payload)
+        qr.make(fit=False)
+        return qr.make_image(fill_color="black", back_color="white").convert("L")
 
-        result = verify_qr_decodable(padded, "hello world")
+    def test_standard_qr_decodable(self):
+        """A standard QR image should be decodable by pyzbar."""
+        img = self._make_decodable_qr("hello world")
+        result = verify_qr_decodable(img, "hello world")
         assert result is True
 
     def test_wrong_payload_fails(self):
         """Verification should fail if expected payload doesn't match."""
-        matrix, _ = generate_qr("hello world", version=4)
-        matrix_scaled = np.kron(matrix, np.ones((10, 10), dtype=np.uint8))
-        border = 40
-        h, w = matrix_scaled.shape
-        padded = np.full((h + 2 * border, w + 2 * border), 255, dtype=np.uint8)
-        padded[border : border + h, border : border + w] = matrix_scaled
-
-        result = verify_qr_decodable(padded, "wrong payload")
+        img = self._make_decodable_qr("hello world")
+        result = verify_qr_decodable(img, "wrong payload")
         assert result is False

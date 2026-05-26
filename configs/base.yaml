@@ -1,0 +1,90 @@
+# Base experiment configuration
+# Frozen copies go into experiments/exp_XXX/ before each run
+
+project:
+  name: stegaqr
+  version: "0.1.0"
+
+# --- Seed Management ---
+seed:
+  master: 42
+  python_random: 42
+  numpy: 42
+  torch: 42
+  torch_cuda: 42
+
+# --- QR Code Parameters ---
+qr:
+  version: 4                    # QR version (1-40)
+  error_correction: M           # L, M, Q, H
+  module_size: 1                # pixels per QR module (for internal use)
+  scale: 10                     # output scale factor
+
+# --- Steganography Parameters ---
+stego:
+  mode: hybrid                  # segregated | cross_channel | hybrid
+  capacity_bits: 100            # target hidden payload size in bits
+  imperceptibility_weight: 1.0  # lambda for perceptual loss
+  robustness_weight: 0.5        # lambda for robustness loss
+  capacity_weight: 1.0          # lambda for decode accuracy loss
+
+# --- Encoder Architecture ---
+encoder:
+  type: neural                  # neural | classical
+  backbone: unet_small          # unet_small | unet_large | resnet_encoder
+  hidden_channels: 64
+  num_blocks: 4
+  perturbation_bound: 0.1       # max per-channel perturbation (0-1 scale)
+
+# --- Decoder Architecture ---
+decoder:
+  backbone: resnet18            # resnet18 | resnet34 | efficientnet_b0
+  hidden_channels: 64
+  use_attention: true
+  attention_type: cross_layer   # self | cross_layer | channel
+  use_qr_anchors: true          # exploit finder/timing patterns
+
+# --- Distortion Layer (training) ---
+distortion:
+  jpeg_quality_range: [30, 95]
+  noise_sigma_range: [0, 25]
+  brightness_range: [0.8, 1.2]
+  color_shift_range: [0, 15]
+  blur_sigma_range: [0, 1.0]
+  perspective_distortion: 0.05
+  enable_all: true
+
+# --- Training ---
+training:
+  epochs: 100
+  batch_size: 32
+  learning_rate: 0.001
+  lr_scheduler: cosine
+  warmup_epochs: 5
+  optimizer: adam
+  weight_decay: 0.0001
+  gradient_clip: 1.0
+  num_workers: 4
+  synthetic_samples_per_epoch: 5000
+  val_split: 0.15
+  checkpoint_every_n_epochs: 5
+
+# --- Evaluation ---
+evaluation:
+  num_trials: 100
+  confidence_level: 0.95
+  multi_seed_runs: 5
+  metrics:
+    - bit_accuracy
+    - full_decode_rate
+    - psnr
+    - ssim
+    - lpips
+    - qr_public_decode_rate
+
+# --- Paths ---
+paths:
+  data_dir: data/
+  experiment_dir: experiments/
+  checkpoint_dir: models/pretrained/
+  figure_dir: figures/

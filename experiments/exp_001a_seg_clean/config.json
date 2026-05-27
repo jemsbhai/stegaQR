@@ -1,0 +1,21 @@
+{
+  "mode": "segregated",
+  "capacity_bits": 99,
+  "qr_version": 4,
+  "ec_level": "M",
+  "epochs": 50,
+  "batch_size": 32,
+  "lr": 0.001,
+  "num_train": 5000,
+  "num_val": 750,
+  "seed": 42,
+  "device": "cuda",
+  "use_distortion": false,
+  "encoder_params": 2362083,
+  "decoder_params": 354147,
+  "lambda_decode": 1.0,
+  "lambda_perceptual": 1.0,
+  "lambda_decodability": 0.5,
+  "lambda_confidence": 0.1,
+  "spatial_size": 33
+}

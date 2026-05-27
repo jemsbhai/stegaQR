@@ -4,6 +4,7 @@ Provides functions to:
   - Generate standard monochrome QR codes as cover images
   - Extract QR structural masks (finder, timing, alignment, format, data)
   - Verify public payload decodability
+  - Scale QR codes to multi-pixel-per-module resolution
 """
 
 from __future__ import annotations
@@ -46,21 +47,24 @@ def generate_qr(
     Returns
     -------
     (matrix, actual_version)
-        matrix : np.ndarray, shape (d, d), dtype uint8, values {0, 255}
+        matrix : np.ndarray, shape (d*module_size, d*module_size), dtype uint8, values {0, 255}
         actual_version : int
     """
     qr = qrcode.QRCode(
         version=version,
         error_correction=EC_LEVELS[ec_level.upper()],
         box_size=module_size,
-        border=0,  # No border — we control padding ourselves
+        border=0,
     )
     qr.add_data(payload)
     qr.make(fit=False)
 
-    # Extract the module matrix (list of lists of bools)
     modules = qr.get_matrix()
     matrix = np.array(modules, dtype=np.uint8) * 255
+
+    if module_size > 1:
+        matrix = np.kron(matrix, np.ones((module_size, module_size), dtype=np.uint8))
+
     return matrix, qr.version
 
 
@@ -68,24 +72,21 @@ def generate_cover_qr_rgb(
     payload: str,
     version: int = 4,
     ec_level: str = "M",
+    module_size: int = 1,
 ) -> tuple[np.ndarray, int]:
     """Generate a standard QR code as an RGB numpy array.
-
-    The QR is rendered as black modules on white background,
-    as a standard phone camera would see it.
 
     Returns
     -------
     (image, actual_version)
-        image: np.ndarray, shape (d, d, 3), dtype float32, values in [0, 1]
+        image: np.ndarray, shape (d*module_size, d*module_size, 3), dtype float32, values in [0, 1]
     """
-    matrix, actual_version = generate_qr(payload, version, ec_level)
-    # Convert to RGB float: 0 = black module, 1 = white module
+    matrix, actual_version = generate_qr(payload, version, ec_level, module_size)
     rgb = np.stack([matrix, matrix, matrix], axis=-1).astype(np.float32) / 255.0
     return rgb, actual_version
 
 
-def get_qr_structure_mask(version: int) -> np.ndarray:
+def get_qr_structure_mask(version: int, module_size: int = 1) -> np.ndarray:
     """Generate a binary mask of QR structural vs. data modules.
 
     Returns a mask where:
@@ -96,30 +97,26 @@ def get_qr_structure_mask(version: int) -> np.ndarray:
     ----------
     version : int
         QR version (1-40).
+    module_size : int
+        Pixels per module. Mask is scaled accordingly.
 
     Returns
     -------
-    np.ndarray, shape (d, d), dtype float32, values {0.0, 1.0}
+    np.ndarray, shape (d*module_size, d*module_size), dtype float32, values {0.0, 1.0}
     """
     d = 4 * version + 17
     mask = np.ones((d, d), dtype=np.float32)
 
     # Finder patterns (3 corners): 7x7 each + 1-module separator
     for (r, c) in [(0, 0), (0, d - 7), (d - 7, 0)]:
-        # Finder pattern itself
         mask[r : r + 7, c : c + 7] = 0.0
 
     # Separators around finder patterns
-    # Top-left
     if d > 7:
         mask[7, 0:8] = 0.0
         mask[0:8, 7] = 0.0
-    # Top-right
-    if d > 7:
         mask[7, d - 8 : d] = 0.0
         mask[0:8, d - 8] = 0.0
-    # Bottom-left
-    if d > 7:
         mask[d - 8, 0:8] = 0.0
         mask[d - 8 : d, 7] = 0.0
 
@@ -127,7 +124,7 @@ def get_qr_structure_mask(version: int) -> np.ndarray:
     mask[6, :] = 0.0
     mask[:, 6] = 0.0
 
-    # Format information (around finder patterns)
+    # Format information
     mask[8, 0:9] = 0.0
     mask[0:9, 8] = 0.0
     mask[8, d - 8 : d] = 0.0
@@ -141,14 +138,12 @@ def get_qr_structure_mask(version: int) -> np.ndarray:
         positions = _alignment_pattern_positions(version)
         for r in positions:
             for c in positions:
-                # Skip if overlapping with finder patterns
                 if (r < 9 and c < 9):
                     continue
                 if (r < 9 and c > d - 9):
                     continue
                 if (r > d - 9 and c < 9):
                     continue
-                # 5x5 alignment pattern
                 mask[r - 2 : r + 3, c - 2 : c + 3] = 0.0
 
     # Version information (version >= 7)
@@ -156,29 +151,27 @@ def get_qr_structure_mask(version: int) -> np.ndarray:
         mask[0:6, d - 11 : d - 8] = 0.0
         mask[d - 11 : d - 8, 0:6] = 0.0
 
+    # Scale up if module_size > 1
+    if module_size > 1:
+        mask = np.kron(mask, np.ones((module_size, module_size), dtype=np.float32))
+
     return mask
 
 
 def _alignment_pattern_positions(version: int) -> list[int]:
-    """Return alignment pattern center positions for a given QR version.
-
-    Based on ISO/IEC 18004:2015 Table E.1.
-    """
+    """Return alignment pattern center positions for a given QR version."""
     if version == 1:
         return []
 
     d = 4 * version + 17
-    # Number of alignment patterns per axis
     num = version // 7 + 2
 
     if num == 2:
         positions = [6, d - 7]
     else:
-        # Calculate evenly spaced positions
         first = 6
         last = d - 7
         step = (last - first) // (num - 1)
-        # Round step to nearest even number
         if step % 2 != 0:
             step += 1
         positions = [first]
@@ -190,20 +183,7 @@ def _alignment_pattern_positions(version: int) -> list[int]:
 
 
 def verify_qr_decodable(image: np.ndarray | Image.Image, expected: str) -> bool:
-    """Check if a QR image can be decoded by a standard reader.
-
-    Parameters
-    ----------
-    image : np.ndarray or PIL.Image.Image
-        QR code image.
-    expected : str
-        Expected decoded payload.
-
-    Returns
-    -------
-    bool
-        True if pyzbar successfully decodes the expected payload.
-    """
+    """Check if a QR image can be decoded by a standard reader."""
     from pyzbar.pyzbar import decode as pyzbar_decode
 
     if isinstance(image, np.ndarray):

@@ -5,24 +5,20 @@ the full pipeline works end-to-end without errors.
 """
 
 import pytest
-import torch
 from pathlib import Path
-import tempfile
-
 from stegaqr.training import train
 
 
 @pytest.mark.slow
 class TestTrainingSmoke:
-    """Smoke tests — verify the pipeline runs without crashing."""
 
     def _run_smoke(self, mode: str, tmp_path: Path):
-        """Run a minimal training for a given mode."""
         capacity = 99 if mode == "segregated" else 100
         result = train(
             mode=mode,
             capacity_bits=capacity,
-            qr_version=2,  # smallest version for speed
+            qr_version=2,
+            module_size=2,  # small for speed
             epochs=2,
             batch_size=4,
             num_train=16,
@@ -31,7 +27,8 @@ class TestTrainingSmoke:
             device="cpu",
             output_dir=str(tmp_path / f"smoke_{mode}"),
             checkpoint_every=2,
-            use_distortion=False,  # faster without distortion
+            use_distortion=False,
+            warmup_decode_only=1,  # 1 epoch warmup, 1 epoch full
         )
         assert result["best_val_acc"] >= 0.0
         assert len(result["history"]["train_loss"]) == 2
@@ -50,11 +47,11 @@ class TestTrainingSmoke:
         self._run_smoke("hybrid", tmp_path)
 
     def test_with_distortion(self, tmp_path):
-        """Verify distortion layer doesn't break gradient flow."""
         result = train(
             mode="cross_channel",
             capacity_bits=50,
             qr_version=2,
+            module_size=2,
             epochs=2,
             batch_size=4,
             num_train=16,
@@ -64,5 +61,6 @@ class TestTrainingSmoke:
             output_dir=str(tmp_path / "smoke_distortion"),
             checkpoint_every=2,
             use_distortion=True,
+            warmup_decode_only=1,
         )
         assert result["best_val_acc"] >= 0.0

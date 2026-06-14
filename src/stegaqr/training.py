@@ -193,9 +193,8 @@ def train(
     }
     best_val_acc = 0.0
     best_score = float("-inf")
-    # Best-model selection: require this robust full-decode rate (under stochastic
-    # distortion, averaged over ROBUST_VAL_DRAWS) before trading robustness for PSNR.
-    ROBUST_FDR_TARGET = 0.98
+    # Robustness is validated under STOCHASTIC distortion, averaged over this many
+    # draws (matches deployment/eval; the deterministic all-at-once mode is too harsh).
     ROBUST_VAL_DRAWS = 3
 
     for epoch in range(epochs):
@@ -353,15 +352,17 @@ def train(
             ckpt_path = output_path / "checkpoints" / f"ckpt_epoch{epoch+1:03d}_acc{val_acc:.4f}.pt"
             torch.save(ckpt, ckpt_path)
 
-        # Best-model selection = MAXIMISE PSNR SUBJECT TO ROBUST FULL-DECODE.
-        # Selecting on clean accuracy keeps the decode-only warmup model (acc
-        # saturates before the perceptual loss shrinks the perturbation -> ugly
-        # ~14 dB). Selecting on clean PSNR alone keeps a beautiful-but-fragile model
-        # (clean-perfect, but bits flip under distortion so the message rarely
-        # decodes). The gated score below first requires robust full-decode (under
-        # deterministic distortion) up to a cap, then maximises PSNR among models
-        # that clear the bar. Warmup epochs are excluded.
-        score = min(val_fdr_robust, ROBUST_FDR_TARGET) * 100.0 + min(val_psnr, 60.0)
+        # Best-model selection = MAXIMISE PSNR SUBJECT TO ROBUSTNESS.
+        # Clean-accuracy selection keeps the decode-only warmup model (ugly ~14 dB);
+        # clean-PSNR selection keeps a fragile model (bits flip under distortion).
+        # The additive score uses robust full-decode AND robust bit-accuracy (both
+        # under stochastic distortion) as primary terms, with a small PSNR term that
+        # only breaks ties among equally-robust models -> "max PSNR subject to
+        # robustness". Including bit-accuracy keeps selection well-behaved for modes
+        # whose full-decode stays ~0 (e.g. hybrid, whose masked finder cells cap raw
+        # accuracy near 94%): it then picks the most-accurate model, not a collapsed
+        # high-PSNR one. Warmup epochs are excluded.
+        score = val_fdr_robust + val_acc_robust + 0.001 * min(val_psnr, 60.0)
         if not in_warmup and score > best_score:
             best_score = score
             best_val_acc = val_acc

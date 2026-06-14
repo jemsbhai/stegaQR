@@ -1,0 +1,22 @@
+{
+  "tag": "classical_lsb",
+  "config": {
+    "mode": "classical_lsb",
+    "capacity_bits": 99
+  },
+  "clean": {
+    "bit_acc": 1.0,
+    "full_decode": 1.0,
+    "psnr": 78.34346108701894,
+    "ssim": 0.9999999599531293,
+    "public_decode": 1.0
+  },
+  "distorted": {
+    "bit_acc": 0.5378787878787878,
+    "full_decode": 0.0390625,
+    "psnr": 29.64673505712074,
+    "ssim": 0.9849397740326822,
+    "public_decode": 1.0
+  },
+  "ecc": {}
+}

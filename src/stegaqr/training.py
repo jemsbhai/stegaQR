@@ -193,9 +193,10 @@ def train(
     }
     best_val_acc = 0.0
     best_score = float("-inf")
-    # Best-model selection target: require this robust full-decode rate (under
-    # deterministic distortion) before trading further robustness for PSNR.
+    # Best-model selection: require this robust full-decode rate (under stochastic
+    # distortion, averaged over ROBUST_VAL_DRAWS) before trading robustness for PSNR.
     ROBUST_FDR_TARGET = 0.98
+    ROBUST_VAL_DRAWS = 3
 
     for epoch in range(epochs):
         t0 = time.time()
@@ -289,18 +290,27 @@ def train(
                 val_accs.append(losses["bit_accuracy"].item())
                 val_mses.append(((stego - cover) ** 2).mean().item())
 
-                # Robustness: decode from a deterministically-distorted stego. This
-                # is what best-model selection should optimise (a high-PSNR model can
-                # be clean-perfect yet fragile -- bits flip under distortion and the
-                # full-decode rate collapses). Falls back to clean when distortion off.
+                # Robustness: decode from STOCHASTICALLY-distorted stego, matching the
+                # deployment/eval distortion (each degradation applied with its own
+                # probability) rather than the worst-case all-at-once deterministic
+                # mode, which is far harsher and selects overly conservative models.
+                # Average a few draws to reduce variance. This is what best-model
+                # selection optimises: a high-PSNR model can be clean-perfect yet
+                # fragile (bits flip -> full-decode collapses). Clean if distortion off.
                 if use_distortion:
-                    dstego = distortion(stego, deterministic=True)
-                    rlogits = decoder(dstego)[0] if mode == "hybrid" else decoder(dstego)
+                    racc_draws, rfdr_draws = [], []
+                    for _ in range(ROBUST_VAL_DRAWS):
+                        dstego = distortion(stego)
+                        rlogits = decoder(dstego)[0] if mode == "hybrid" else decoder(dstego)
+                        rpred = (torch.sigmoid(rlogits) > 0.5).float()
+                        racc_draws.append((rpred == payload).float().mean().item())
+                        rfdr_draws.append((rpred == payload).all(dim=1).float().mean().item())
+                    val_accs_robust.append(sum(racc_draws) / len(racc_draws))
+                    val_fdr_robust.append(sum(rfdr_draws) / len(rfdr_draws))
                 else:
-                    rlogits = predicted_logits
-                rpred = (torch.sigmoid(rlogits) > 0.5).float()
-                val_accs_robust.append((rpred == payload).float().mean().item())
-                val_fdr_robust.append((rpred == payload).all(dim=1).float().mean().item())
+                    rpred = (torch.sigmoid(predicted_logits) > 0.5).float()
+                    val_accs_robust.append((rpred == payload).float().mean().item())
+                    val_fdr_robust.append((rpred == payload).all(dim=1).float().mean().item())
 
         val_loss = sum(val_losses) / len(val_losses)
         val_acc = sum(val_accs) / len(val_accs)

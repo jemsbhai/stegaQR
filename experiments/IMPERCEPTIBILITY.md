@@ -117,6 +117,42 @@ success and is how StegaStamp and real watermarking systems operate at 30+ dB.
 Cost: net payload < raw capacity (the rate). This is the recommended next step to
 get 30+ dB WITH robust full-message decode.
 
+## Error-correction coding (ECC): breaking the 20 dB message wall
+
+`src/stegaqr/coding.py` adds ECC on the payload (repetition with SOFT-decision /
+log-likelihood combining of the decoder logits, and Hamming(7,4)). ECC is an
+application-layer wrapper around the trained model -- no retraining: message bits
+-> ECC-encode to n coded bits -> embed -> recover n logits -> ECC-decode (correct)
+-> message. `scripts/evaluate.py --ecc {none|rep3|rep5|hamming74}` reports the
+MESSAGE decode rate (all net bits correct).
+
+ECC on a high-PSNR model under (stochastic) distortion:
+
+| model PSNR | ECC  | net bits | raw full-decode | MESSAGE decode |
+|------------|------|----------|-----------------|----------------|
+| 36.7 dB    | none | 100      | 94.8%           | 94.8%          |
+| 36.7 dB    | rep3 | 33       | --              | **100.0%**     |
+| 36.7 dB    | rep5 | 20       | --              | 99.0%          |
+| 39.3 dB    | rep5 | 20       | --              | 95-99%         |
+
+**Two validated operating points** (cross_channel, cap=100, ms=4, with distortion,
+held-out, n=96):
+
+| point | PSNR | SSIM | net payload | robust message decode | public QR |
+|-------|------|------|-------------|-----------------------|-----------|
+| A: no ECC      | 21.2 dB | 0.984  | 100 bits | 100% | 100% |
+| B: rep3 ECC    | 36.7 dB | 0.9996 | 33 bits  | 100% | 100% |
+
+ECC buys **+15 dB imperceptibility (near-invisible, SSIM 0.9996)** for a 3x payload
+reduction, both at 100% robust message decode. This is the capacity/imperceptibility
+trade the paper presents; stronger codes (BCH/RS/LDPC) would improve the rate.
+
+### Best-model selection now validates robustness under *stochastic* distortion
+An earlier version validated under `deterministic=True` (all degradations at once =
+worst case), which was far harsher than deployment and selected overly conservative
+models. Fixed to average robust full-decode over `ROBUST_VAL_DRAWS=3` stochastic
+draws (matches eval). The no-ECC default lands at the ~21 dB / 100%-message knee.
+
 ## Takeaways (folded into the paper)
 - **Clean decodability is free; robustness is the binding constraint.** The gap
   between the two curves (e.g. 44 dB clean vs 23 dB robust at fixed 100% accuracy)

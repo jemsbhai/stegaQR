@@ -95,6 +95,13 @@ def main():
     p.add_argument("--steps", type=int, default=4000)
     p.add_argument("--lr", type=float, default=1e-3)
     p.add_argument("--perturbation-bound", type=float, default=0.5)
+    p.add_argument("--lambda-perceptual", type=float, default=0.0,
+                   help="weight on perceptual loss (MSE + 0.5*max-dev). >0 enables "
+                        "adaptive sub-bound perturbation for higher PSNR.")
+    p.add_argument("--perc-warmup", type=int, default=0,
+                   help="steps of decode-only before perceptual loss turns on")
+    p.add_argument("--perc-ramp", type=int, default=0,
+                   help="steps over which lambda_perceptual ramps 0->target after warmup")
     p.add_argument("--device", default="cuda")
     args = p.parse_args()
 
@@ -148,6 +155,18 @@ def main():
             args.ec_level, mask1, device, pool=pool)
         stego, logits = run_decode(enc, dec, cover, payload, mask, is_hybrid, distortion)
         loss = F.binary_cross_entropy_with_logits(logits, payload)
+        if args.lambda_perceptual > 0:
+            # warmup (decode-only) then linear ramp 0 -> target for stability
+            if step < args.perc_warmup:
+                lp = 0.0
+            elif args.perc_ramp > 0:
+                lp = args.lambda_perceptual * min(1.0, (step - args.perc_warmup) / args.perc_ramp)
+            else:
+                lp = args.lambda_perceptual
+            if lp > 0:
+                mse = F.mse_loss(stego, cover)
+                max_dev = (stego - cover).abs().amax(dim=(1, 2, 3)).mean()
+                loss = loss + lp * (mse + 0.5 * max_dev)
         opt.zero_grad(); loss.backward(); opt.step()
 
         if step % 250 == 0 or step == args.steps - 1:

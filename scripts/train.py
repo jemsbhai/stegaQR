@@ -33,12 +33,18 @@ def main():
     parser.add_argument("--output-dir", type=str, default=None)
     parser.add_argument("--checkpoint-every", type=int, default=10)
     parser.add_argument("--no-distortion", action="store_true")
-    parser.add_argument("--perturbation-bound", type=float, default=0.1,
-                        help="Max per-channel perturbation. 0.1 = robust knee "
-                             "(100%% robust bit-acc, ~23dB PSNR); see "
-                             "experiments/IMPERCEPTIBILITY.md")
+    parser.add_argument("--perturbation-bound", type=float, default=0.3,
+                        help="Max per-channel perturbation (generous bound). The "
+                             "perceptual loss drives ADAPTIVE sub-bound perturbation; "
+                             "see experiments/IMPERCEPTIBILITY.md")
+    parser.add_argument("--lambda-perceptual", type=float, default=6.0,
+                        help="Perceptual loss weight. Higher -> more imperceptible "
+                             "(higher PSNR) at the cost of robustness margin.")
     parser.add_argument("--warmup-epochs", type=int, default=10,
-                        help="Epochs of decode-only loss before adding perceptual/decodability")
+                        help="Epochs of decode-only loss before ramping perceptual in")
+    parser.add_argument("--perc-ramp-epochs", type=int, default=10,
+                        help="Epochs to linearly ramp perceptual/decodability 0->target "
+                             "after warmup (stabilises adaptive embedding)")
 
     args = parser.parse_args()
 
@@ -62,7 +68,9 @@ def main():
         checkpoint_every=args.checkpoint_every,
         use_distortion=not args.no_distortion,
         perturbation_bound=args.perturbation_bound,
+        lambda_perceptual=args.lambda_perceptual,
         warmup_decode_only=args.warmup_epochs,
+        perc_ramp_epochs=args.perc_ramp_epochs,
     )
 
     print(f"\nFinal best validation accuracy: {result['best_val_acc']:.4f}")

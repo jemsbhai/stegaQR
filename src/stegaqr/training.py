@@ -10,6 +10,7 @@ Changes from v1:
 from __future__ import annotations
 
 import json
+import math
 import time
 from pathlib import Path
 
@@ -80,12 +81,13 @@ def train(
     output_dir: str = "experiments/default",
     checkpoint_every: int = 10,
     lambda_decode: float = 1.0,
-    lambda_perceptual: float = 1.0,
+    lambda_perceptual: float = 6.0,
     lambda_decodability: float = 0.5,
     lambda_confidence: float = 0.1,
-    perturbation_bound: float = 0.1,
+    perturbation_bound: float = 0.3,
     use_distortion: bool = True,
     warmup_decode_only: int = 10,
+    perc_ramp_epochs: int = 10,
 ) -> dict:
     """Train a StegaQR encoder-decoder pair.
 
@@ -171,6 +173,7 @@ def train(
         "use_distortion": use_distortion,
         "perturbation_bound": perturbation_bound,
         "warmup_decode_only": warmup_decode_only,
+        "perc_ramp_epochs": perc_ramp_epochs,
         "encoder_params": _count_parameters(encoder),
         "decoder_params": _count_parameters(decoder),
         "spatial_size": spatial_size,
@@ -185,21 +188,32 @@ def train(
     history = {
         "train_loss": [], "train_bit_acc": [],
         "val_loss": [], "val_bit_acc": [],
+        "val_bit_acc_robust": [], "val_fdr_robust": [], "val_psnr": [],
         "lr": [],
     }
     best_val_acc = 0.0
+    best_score = float("-inf")
+    # Best-model selection target: require this robust full-decode rate (under
+    # deterministic distortion) before trading further robustness for PSNR.
+    ROBUST_FDR_TARGET = 0.98
 
     for epoch in range(epochs):
         t0 = time.time()
 
-        # --- Curriculum: decode-only during warmup ---
+        # --- Curriculum: decode-only warmup, then RAMP perceptual/decodability in.
+        # Establishing the bit-code first (decode-only) and ramping the perceptual
+        # pressure gradually lets the encoder converge to an *adaptive* sub-bound
+        # perturbation (high PSNR) without the decode/perceptual tug-of-war
+        # collapsing accuracy. See experiments/IMPERCEPTIBILITY.md.
         in_warmup = epoch < warmup_decode_only
         if in_warmup:
-            criterion.lambda_perceptual = 0.0
-            criterion.lambda_decodability = 0.0
+            ramp = 0.0
+        elif perc_ramp_epochs > 0:
+            ramp = min(1.0, (epoch - warmup_decode_only + 1) / perc_ramp_epochs)
         else:
-            criterion.lambda_perceptual = lambda_perceptual
-            criterion.lambda_decodability = lambda_decodability
+            ramp = 1.0
+        criterion.lambda_perceptual = ramp * lambda_perceptual
+        criterion.lambda_decodability = ramp * lambda_decodability
 
         # ---- Train ----
         encoder.train()
@@ -247,6 +261,9 @@ def train(
         decoder.eval()
         val_losses = []
         val_accs = []
+        val_accs_robust = []
+        val_fdr_robust = []
+        val_mses = []
 
         with torch.no_grad():
             for batch in val_loader:
@@ -270,25 +287,46 @@ def train(
                 )
                 val_losses.append(losses["total"].item())
                 val_accs.append(losses["bit_accuracy"].item())
+                val_mses.append(((stego - cover) ** 2).mean().item())
+
+                # Robustness: decode from a deterministically-distorted stego. This
+                # is what best-model selection should optimise (a high-PSNR model can
+                # be clean-perfect yet fragile -- bits flip under distortion and the
+                # full-decode rate collapses). Falls back to clean when distortion off.
+                if use_distortion:
+                    dstego = distortion(stego, deterministic=True)
+                    rlogits = decoder(dstego)[0] if mode == "hybrid" else decoder(dstego)
+                else:
+                    rlogits = predicted_logits
+                rpred = (torch.sigmoid(rlogits) > 0.5).float()
+                val_accs_robust.append((rpred == payload).float().mean().item())
+                val_fdr_robust.append((rpred == payload).all(dim=1).float().mean().item())
 
         val_loss = sum(val_losses) / len(val_losses)
         val_acc = sum(val_accs) / len(val_accs)
+        val_acc_robust = sum(val_accs_robust) / len(val_accs_robust)
+        val_fdr_robust = sum(val_fdr_robust) / len(val_fdr_robust)
+        val_mse = sum(val_mses) / len(val_mses)
         current_lr = scheduler.get_last_lr()[0]
         elapsed = time.time() - t0
+
+        val_psnr = float("inf") if val_mse == 0 else 10.0 * math.log10(1.0 / val_mse)
 
         history["train_loss"].append(train_loss)
         history["train_bit_acc"].append(train_acc)
         history["val_loss"].append(val_loss)
         history["val_bit_acc"].append(val_acc)
+        history["val_bit_acc_robust"].append(val_acc_robust)
+        history["val_fdr_robust"].append(val_fdr_robust)
+        history["val_psnr"].append(val_psnr)
         history["lr"].append(current_lr)
 
-        phase = "WARMUP" if in_warmup else "FULL"
+        phase = "WARMUP" if in_warmup else ("RAMP" if ramp < 1.0 else "FULL")
         print(
             f"Epoch {epoch+1:3d}/{epochs} [{phase:6s}] | "
-            f"Train Loss: {train_loss:.4f} Acc: {train_acc:.4f} | "
-            f"Val Loss: {val_loss:.4f} Acc: {val_acc:.4f} | "
-            f"LR: {current_lr:.2e} | "
-            f"{elapsed:.1f}s"
+            f"Acc: {val_acc:.4f} | rAcc: {val_acc_robust:.4f} rFDR: {val_fdr_robust:.3f} | "
+            f"PSNR: {val_psnr:5.1f}dB | "
+            f"LR: {current_lr:.2e} | px{ramp:.2f} | {elapsed:.1f}s"
         )
 
         if (epoch + 1) % checkpoint_every == 0:
@@ -305,7 +343,17 @@ def train(
             ckpt_path = output_path / "checkpoints" / f"ckpt_epoch{epoch+1:03d}_acc{val_acc:.4f}.pt"
             torch.save(ckpt, ckpt_path)
 
-        if val_acc > best_val_acc:
+        # Best-model selection = MAXIMISE PSNR SUBJECT TO ROBUST FULL-DECODE.
+        # Selecting on clean accuracy keeps the decode-only warmup model (acc
+        # saturates before the perceptual loss shrinks the perturbation -> ugly
+        # ~14 dB). Selecting on clean PSNR alone keeps a beautiful-but-fragile model
+        # (clean-perfect, but bits flip under distortion so the message rarely
+        # decodes). The gated score below first requires robust full-decode (under
+        # deterministic distortion) up to a cap, then maximises PSNR among models
+        # that clear the bar. Warmup epochs are excluded.
+        score = min(val_fdr_robust, ROBUST_FDR_TARGET) * 100.0 + min(val_psnr, 60.0)
+        if not in_warmup and score > best_score:
+            best_score = score
             best_val_acc = val_acc
             torch.save({
                 "epoch": epoch + 1,
@@ -313,6 +361,9 @@ def train(
                 "decoder_state": decoder.state_dict(),
                 "config": config,
                 "val_acc": val_acc,
+                "val_bit_acc_robust": val_acc_robust,
+                "val_fdr_robust": val_fdr_robust,
+                "val_psnr": val_psnr,
             }, output_path / "best_model.pt")
 
     with open(output_path / "logs" / "history.json", "w") as f:

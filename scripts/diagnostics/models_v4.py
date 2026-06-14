@@ -26,10 +26,17 @@ def grid_dims(L):
     return gh, gw
 
 
+def _norm(c):
+    g = max(1, c // 8)
+    while c % g != 0:
+        g -= 1
+    return nn.GroupNorm(g, c)
+
+
 def conv_bn_relu(cin, cout, k=3):
     return nn.Sequential(
         nn.Conv2d(cin, cout, k, padding=k // 2, bias=False),
-        nn.BatchNorm2d(cout),
+        _norm(cout),  # GroupNorm: train==eval, critical in tiny-perturbation regime (D6)
         nn.ReLU(inplace=True),
     )
 

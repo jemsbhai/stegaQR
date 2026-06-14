@@ -24,8 +24,22 @@ from stegaqr.models.losses import StegaQRLoss
 from stegaqr.utils.seed import set_all_seeds, save_seeds
 
 
-def _get_encoder_decoder(mode: str, capacity_bits: int, device: str, perturbation_bound: float = 0.1):
-    """Instantiate the correct encoder-decoder pair for a given mode."""
+def _get_encoder_decoder(mode: str, capacity_bits: int, device: str, perturbation_bound: float = 0.1,
+                         arch: str = "grid", mask_aware: bool = False, qr_version: int = 4):
+    """Instantiate the correct encoder-decoder pair for a given mode.
+
+    arch='grid' (default) uses the spatial bit-grid; arch='broadcast' uses the
+    HiDDeN-style global-broadcast baseline (cross_channel only). mask_aware enables
+    the data-rich-cell hybrid variant.
+    """
+    if arch == "broadcast":
+        from stegaqr.models.encoder import BroadcastEncoder
+        from stegaqr.models.decoder import BroadcastDecoder
+        encoder = BroadcastEncoder(capacity_bits=capacity_bits,
+                                   perturbation_bound=perturbation_bound).to(device)
+        decoder = BroadcastDecoder(capacity_bits=capacity_bits).to(device)
+        return encoder, decoder, capacity_bits, False
+
     if mode == "segregated":
         from stegaqr.models.encoder import SegregatedEncoder
         from stegaqr.models.decoder import SegregatedDecoder
@@ -53,8 +67,10 @@ def _get_encoder_decoder(mode: str, capacity_bits: int, device: str, perturbatio
 
         encoder = HybridEncoder(
             capacity_bits=capacity_bits, perturbation_bound=perturbation_bound,
+            mask_aware=mask_aware, qr_version=qr_version,
         ).to(device)
-        decoder = HybridDecoder(capacity_bits=capacity_bits).to(device)
+        decoder = HybridDecoder(capacity_bits=capacity_bits,
+                                mask_aware=mask_aware, qr_version=qr_version).to(device)
         return encoder, decoder, capacity_bits, True
 
     else:
@@ -88,6 +104,8 @@ def train(
     use_distortion: bool = True,
     warmup_decode_only: int = 10,
     perc_ramp_epochs: int = 10,
+    arch: str = "grid",
+    mask_aware: bool = False,
 ) -> dict:
     """Train a StegaQR encoder-decoder pair.
 
@@ -117,7 +135,8 @@ def train(
 
     # --- Models ---
     encoder, decoder, capacity_bits, use_confidence = _get_encoder_decoder(
-        mode, capacity_bits, device, perturbation_bound
+        mode, capacity_bits, device, perturbation_bound,
+        arch=arch, mask_aware=mask_aware, qr_version=qr_version,
     )
 
     print(f"Mode: {mode}")
@@ -174,6 +193,8 @@ def train(
         "perturbation_bound": perturbation_bound,
         "warmup_decode_only": warmup_decode_only,
         "perc_ramp_epochs": perc_ramp_epochs,
+        "arch": arch,
+        "mask_aware": mask_aware,
         "encoder_params": _count_parameters(encoder),
         "decoder_params": _count_parameters(decoder),
         "spatial_size": spatial_size,

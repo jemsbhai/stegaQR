@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -76,6 +77,47 @@ class GridReadHead(nn.Module):
         return cells.view(cells.size(0), -1)[:, : self.capacity_bits]
 
 
+class MaskAwareReadHead(nn.Module):
+    """Read head for the mask-aware hybrid: pool to grid x grid, gather the same
+    data-rich cells the encoder wrote to."""
+
+    def __init__(self, in_channels: int, qr_version: int, capacity_bits: int):
+        super().__init__()
+        from stegaqr.models.encoder import select_data_cells
+        self.grid = int(np.ceil(np.sqrt(2 * capacity_bits)))
+        self.register_buffer("cells", select_data_cells(qr_version, self.grid, capacity_bits))
+        self.to_map = nn.Conv2d(in_channels, 1, 1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        m = self.to_map(x)
+        cells = F.adaptive_avg_pool2d(m, (self.grid, self.grid))
+        flat = cells.view(cells.size(0), -1)
+        return flat[:, self.cells]
+
+
+class BroadcastReadHead(nn.Module):
+    """HiDDeN-style readout: 1x1 conv to L channels -> global average pool -> L logits."""
+
+    def __init__(self, in_channels: int, capacity_bits: int):
+        super().__init__()
+        self.to_bits = nn.Conv2d(in_channels, capacity_bits, 1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.to_bits(x).mean(dim=(2, 3))
+
+
+class BroadcastDecoder(nn.Module):
+    """Neural BASELINE decoder (HiDDeN/StegaStamp-style global readout)."""
+
+    def __init__(self, capacity_bits: int = 100, hidden_channels: int = 64, num_blocks: int = 7):
+        super().__init__()
+        self.body = _decoder_body(3, hidden_channels, num_blocks)
+        self.head = BroadcastReadHead(hidden_channels, capacity_bits)
+
+    def forward(self, stego: torch.Tensor) -> torch.Tensor:
+        return self.head(self.body(stego))
+
+
 class SegregatedDecoder(nn.Module):
     """Per-channel decoder — each channel's bits are read only from that channel."""
 
@@ -118,7 +160,8 @@ class HybridDecoder(nn.Module):
     confidence head predicts the probability the payload was recovered correctly.
     """
 
-    def __init__(self, capacity_bits: int = 100, hidden_channels: int = 64, num_blocks: int = 6):
+    def __init__(self, capacity_bits: int = 100, hidden_channels: int = 64, num_blocks: int = 6,
+                 mask_aware: bool = False, qr_version: int = 4):
         super().__init__()
         self.calibrator = nn.Sequential(
             nn.Conv2d(3, 32, 3, padding=1),
@@ -128,7 +171,8 @@ class HybridDecoder(nn.Module):
             nn.Linear(32 * 8 * 8, 12),  # 3x3 matrix + 3 bias
         )
         self.body = _decoder_body(3, hidden_channels, num_blocks)
-        self.payload_head = GridReadHead(hidden_channels, capacity_bits)
+        self.payload_head = (MaskAwareReadHead(hidden_channels, qr_version, capacity_bits)
+                             if mask_aware else GridReadHead(hidden_channels, capacity_bits))
         self.confidence_head = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),

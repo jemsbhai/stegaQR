@@ -45,6 +45,10 @@ def main():
     parser.add_argument("--perc-ramp-epochs", type=int, default=10,
                         help="Epochs to linearly ramp perceptual/decodability 0->target "
                              "after warmup (stabilises adaptive embedding)")
+    parser.add_argument("--arch", default="grid", choices=["grid", "broadcast"],
+                        help="grid = spatial bit-grid (ours); broadcast = HiDDeN-style baseline")
+    parser.add_argument("--mask-aware", action="store_true",
+                        help="hybrid only: place bits on data-rich cells (avoid finder patterns)")
 
     args = parser.parse_args()
 
@@ -71,6 +75,8 @@ def main():
         lambda_perceptual=args.lambda_perceptual,
         warmup_decode_only=args.warmup_epochs,
         perc_ramp_epochs=args.perc_ramp_epochs,
+        arch=args.arch,
+        mask_aware=args.mask_aware,
     )
 
     print(f"\nFinal best validation accuracy: {result['best_val_acc']:.4f}")

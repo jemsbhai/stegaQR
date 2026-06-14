@@ -26,9 +26,16 @@ from stegaqr.utils.metrics import (
 from stegaqr.coding import get_ecc
 
 
-def build_models(mode, capacity_bits, device, perturbation_bound):
+def build_models(mode, capacity_bits, device, perturbation_bound,
+                 arch="grid", mask_aware=False, qr_version=4):
     """Instantiate encoder/decoder for a mode. perturbation_bound MUST match the
-    trained value (it scales the encoder output; it is not a learned weight)."""
+    trained value (it scales the encoder output; it is not a learned weight).
+    arch/mask_aware must also match the trained checkpoint."""
+    if arch == "broadcast":
+        from stegaqr.models.encoder import BroadcastEncoder
+        from stegaqr.models.decoder import BroadcastDecoder
+        return (BroadcastEncoder(capacity_bits, perturbation_bound=perturbation_bound).to(device),
+                BroadcastDecoder(capacity_bits).to(device), False)
     if mode == "segregated":
         from stegaqr.models.encoder import SegregatedEncoder
         from stegaqr.models.decoder import SegregatedDecoder
@@ -42,8 +49,9 @@ def build_models(mode, capacity_bits, device, perturbation_bound):
     if mode == "hybrid":
         from stegaqr.models.encoder import HybridEncoder
         from stegaqr.models.decoder import HybridDecoder
-        return (HybridEncoder(capacity_bits, perturbation_bound=perturbation_bound).to(device),
-                HybridDecoder(capacity_bits).to(device), True)
+        return (HybridEncoder(capacity_bits, perturbation_bound=perturbation_bound,
+                              mask_aware=mask_aware, qr_version=qr_version).to(device),
+                HybridDecoder(capacity_bits, mask_aware=mask_aware, qr_version=qr_version).to(device), True)
     raise ValueError(mode)
 
 
@@ -97,7 +105,10 @@ def evaluate_checkpoint(ckpt_path, n=128, eccs=("rep3", "rep5"), seed=1234,
     qrv, ms, ec = cfg["qr_version"], cfg["module_size"], cfg["ec_level"]
     pbound = cfg.get("perturbation_bound", 0.1)
 
-    enc, dec, is_hybrid = build_models(mode, cap, device, pbound)
+    enc, dec, is_hybrid = build_models(mode, cap, device, pbound,
+                                       arch=cfg.get("arch", "grid"),
+                                       mask_aware=cfg.get("mask_aware", False),
+                                       qr_version=qrv)
     enc.load_state_dict(ckpt["encoder_state"]); dec.load_state_dict(ckpt["decoder_state"])
     enc.eval(); dec.eval()
 
@@ -155,3 +166,67 @@ def evaluate_checkpoint(ckpt_path, n=128, eccs=("rep3", "rep5"), seed=1234,
         }
 
     return out
+
+
+def evaluate_real_distortions(ckpt_path, n=128, presets=None, ecc_name="rep3",
+                              seed=1234, device="cuda", chunk=32, quiet_zone=0):
+    """Evaluate robustness under REAL (non-differentiable) distortion presets.
+
+    For each preset, applies the real operator (true JPEG, blur, resize, etc.) to
+    the clean stego images, then decodes. Returns per-preset raw bit/full-decode and
+    ECC message-decode. This is the credible robustness measurement (the training
+    distortion is a differentiable approximation).
+    """
+    from stegaqr.realistic_distortion import make_presets
+
+    device = device if torch.cuda.is_available() else "cpu"
+    set_all_seeds(seed)
+    rng = np.random.default_rng(seed)
+    presets = presets or list(make_presets(rng).keys())
+    preset_fns = make_presets(rng)
+
+    ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
+    cfg = ckpt["config"]
+    mode, cap = cfg["mode"], cfg["capacity_bits"]
+    qrv, ms, ec = cfg["qr_version"], cfg["module_size"], cfg["ec_level"]
+    enc, dec, is_hybrid = build_models(mode, cap, device, cfg.get("perturbation_bound", 0.1),
+                                       arch=cfg.get("arch", "grid"),
+                                       mask_aware=cfg.get("mask_aware", False), qr_version=qrv)
+    enc.load_state_dict(ckpt["encoder_state"]); dec.load_state_dict(ckpt["decoder_state"])
+    enc.eval(); dec.eval()
+
+    ecc = get_ecc(ecc_name)
+    k = ecc.message_len(cap); clen = ecc.coded_len(k)
+    msgs = np.random.randint(0, 2, size=(n, k)).astype(np.uint8)
+    pbits = np.zeros((n, cap), dtype=np.uint8)
+    for i in range(n):
+        pbits[i, :clen] = ecc.encode(msgs[i])
+    cover, payload, mask, _ = _gen_samples(n, cap, qrv, ms, ec, quiet_zone, device, payload_bits=pbits)
+
+    # clean stego (numpy) once
+    _, stego_np = _forward(enc, dec, cover, payload, mask, is_hybrid, None, chunk)
+    gt = payload.cpu().numpy().astype(np.uint8)
+
+    results = {"config": {"mode": mode, "capacity_bits": cap, "ecc": ecc_name,
+                          "net_bits": int(k), "checkpoint": str(ckpt_path)}, "presets": {}}
+    for name in presets:
+        fn = preset_fns[name]
+        dist_np = np.stack([fn(stego_np[i]) for i in range(n)])      # (n,H,W,3)
+        t = torch.from_numpy(dist_np).permute(0, 3, 1, 2).float().to(device)
+        logits = []
+        for s in range(0, n, chunk):
+            with torch.no_grad():
+                lo = dec(t[s:s + chunk])[0] if is_hybrid else dec(t[s:s + chunk])
+            logits.append(lo.cpu().numpy())
+        logits = np.concatenate(logits)
+        pred = (logits > 0).astype(np.uint8)
+        ba = float(np.mean(pred == gt))
+        fdr = float(np.mean(np.all(pred == gt, axis=1)))
+        dec_msgs = np.stack([ecc.decode(logits[i, :clen]) for i in range(n)])
+        mfull = float(np.mean(np.all(dec_msgs == msgs, axis=1)))
+        lo, hi = wilson_score_ci(int(round(mfull * n)), n)
+        results["presets"][name] = {
+            "bit_acc": ba, "full_decode": fdr,
+            "msg_decode": mfull, "msg_decode_ci": [lo, hi],
+        }
+    return results

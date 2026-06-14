@@ -58,7 +58,7 @@ CAPACITIES = [25, 50, 150, 200]   # 100 comes from the main matrix
 SEEDS_CAP = [42, 123, 7]
 
 
-def _run_one(mode, capacity, seed, use_distortion, tag):
+def _run_one(mode, capacity, seed, use_distortion, tag, arch="grid", mask_aware=False):
     out_dir = OUT / tag
     res_path = out_dir / "results.json"
     if res_path.exists():
@@ -74,7 +74,7 @@ def _run_one(mode, capacity, seed, use_distortion, tag):
         output_dir=str(out_dir), checkpoint_every=EPOCHS,
         lambda_perceptual=LAMBDA_PERC, perturbation_bound=PBOUND,
         use_distortion=use_distortion, warmup_decode_only=WARMUP,
-        perc_ramp_epochs=RAMP,
+        perc_ramp_epochs=RAMP, arch=arch, mask_aware=mask_aware,
     )
     metrics = evaluate_checkpoint(str(out_dir / "best_model.pt"), n=EVAL_N,
                                   eccs=ECCS, seed=1234 + seed)
@@ -100,6 +100,14 @@ def run_capacity(seeds):
     for cap in CAPACITIES:
         for seed in seeds:
             _run_one("cross_channel", cap, seed, True, f"cap_{cap}_s{seed}")
+
+
+def run_ablations(seeds):
+    """Neural baseline (global broadcast) and the mask-aware hybrid, vs the
+    spatial-grid mode results in the main matrix (cross_channel / hybrid distort)."""
+    for seed in seeds:
+        _run_one("cross_channel", 100, seed, True, f"abl_broadcast_s{seed}", arch="broadcast")
+        _run_one("hybrid", 100, seed, True, f"abl_hybrid_maskaware_s{seed}", mask_aware=True)
 
 
 def run_classical():
@@ -155,7 +163,7 @@ def run_classical():
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--quick", action="store_true", help="tiny smoke matrix")
-    p.add_argument("--only", choices=["main", "capacity", "classical"], default=None)
+    p.add_argument("--only", choices=["main", "capacity", "classical", "ablations"], default=None)
     args = p.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
 
@@ -172,6 +180,8 @@ def main():
         run_main(SEEDS)
     if args.only in (None, "capacity"):
         run_capacity(SEEDS_CAP)
+    if args.only in (None, "ablations"):
+        run_ablations(SEEDS_CAP)
     if args.only in (None, "classical"):
         run_classical()
     print("\nALL RUNS COMPLETE")

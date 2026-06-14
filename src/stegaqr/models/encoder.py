@@ -42,6 +42,23 @@ def payload_to_gridmap(payload: torch.Tensor, gh: int, gw: int, H: int, W: int) 
     return F.interpolate(grid, size=(H, W), mode="nearest")
 
 
+def select_data_cells(qr_version: int, grid: int, num_bits: int) -> torch.Tensor:
+    """Pick the `num_bits` grid cells (in a grid x grid layout) with the highest
+    fraction of DATA modules, avoiding finder/timing/format regions.
+
+    Returns sorted flat indices into a grid*grid layout. Used by the mask-aware
+    hybrid so payload bits are never placed on cells dominated by protected modules
+    (which the hybrid encoder cannot perturb), which otherwise caps accuracy ~94%.
+    """
+    from stegaqr.utils.qr_utils import get_qr_structure_mask
+    import numpy as np
+    mask = get_qr_structure_mask(qr_version, 1)            # (d, d): 1=data, 0=protected
+    m = torch.from_numpy(mask)[None, None].float()
+    frac = F.adaptive_avg_pool2d(m, grid).flatten()       # (grid*grid,) data fraction
+    idx = torch.argsort(frac, descending=True)[:num_bits]
+    return torch.sort(idx).values
+
+
 def _norm(num_channels: int) -> nn.Module:
     """GroupNorm (no running stats) — train/eval consistent, which matters for the
     tiny-perturbation steganographic regime where BatchNorm's running statistics
@@ -164,21 +181,63 @@ class HybridEncoder(nn.Module):
         hidden_channels: int = 64,
         perturbation_bound: float = 0.3,
         num_blocks: int = 5,
+        mask_aware: bool = False,
+        qr_version: int = 4,
         **kwargs,
     ):
         super().__init__()
         self.capacity_bits = capacity_bits
         self.perturbation_bound = perturbation_bound
-        self.gh, self.gw = grid_dims(capacity_bits)
+        self.mask_aware = mask_aware
+        if mask_aware:
+            # finer grid with headroom; place bits only on data-rich cells so
+            # finder-pattern cells (which cannot be perturbed) never carry bits.
+            self.grid = int(math.ceil(math.sqrt(2 * capacity_bits)))
+            self.register_buffer("cells", select_data_cells(qr_version, self.grid, capacity_bits))
+        else:
+            self.gh, self.gw = grid_dims(capacity_bits)
         self.body = _encoder_body(3 + 1 + 1, hidden_channels, num_blocks)  # cover + bitmap + mask
         self.head = nn.Sequential(nn.Conv2d(hidden_channels, 3, 1), nn.Tanh())
+
+    def _bitmap(self, payload: torch.Tensor, H: int, W: int) -> torch.Tensor:
+        if not self.mask_aware:
+            return payload_to_gridmap(payload, self.gh, self.gw, H, W)
+        B = payload.shape[0]
+        flat = payload.new_zeros(B, self.grid * self.grid)
+        flat[:, self.cells] = payload
+        grid = flat.view(B, 1, self.grid, self.grid)
+        return F.interpolate(grid, size=(H, W), mode="nearest")
 
     def forward(
         self, cover: torch.Tensor, payload: torch.Tensor, qr_mask: torch.Tensor,
     ) -> torch.Tensor:
         B, _, H, W = cover.shape
-        bitmap = payload_to_gridmap(payload, self.gh, self.gw, H, W)
+        bitmap = self._bitmap(payload, H, W)
         x = torch.cat([cover, bitmap, qr_mask], dim=1)
         pert = self.head(self.body(x)) * self.perturbation_bound
         pert = pert * qr_mask
+        return torch.clamp(cover + pert, 0.0, 1.0)
+
+
+class BroadcastEncoder(nn.Module):
+    """Neural BASELINE encoder (HiDDeN/StegaStamp-style global broadcast).
+
+    Each payload bit is broadcast as a CONSTANT spatial channel (no grid layout),
+    concatenated with the cover, and passed through a conv stack. This is the
+    standard prior-art approach; comparing it against the spatial-grid encoders
+    isolates the contribution of the grid layout (see DIAGNOSTICS D5).
+    """
+
+    def __init__(self, capacity_bits: int = 100, hidden_channels: int = 64,
+                 perturbation_bound: float = 0.3, num_blocks: int = 5, **kwargs):
+        super().__init__()
+        self.capacity_bits = capacity_bits
+        self.perturbation_bound = perturbation_bound
+        self.body = _encoder_body(3 + capacity_bits, hidden_channels, num_blocks)
+        self.head = nn.Sequential(nn.Conv2d(hidden_channels, 3, 1), nn.Tanh())
+
+    def forward(self, cover: torch.Tensor, payload: torch.Tensor) -> torch.Tensor:
+        B, _, H, W = cover.shape
+        pmap = payload.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, H, W)
+        pert = self.head(self.body(torch.cat([cover, pmap], dim=1))) * self.perturbation_bound
         return torch.clamp(cover + pert, 0.0, 1.0)

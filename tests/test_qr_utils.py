@@ -113,3 +113,19 @@ class TestQRDecodability:
         img = self._make_decodable_qr("hello world")
         result = verify_qr_decodable(img, "wrong payload")
         assert result is False
+
+    def test_generated_cover_is_decodable(self):
+        """Regression: our OWN generated cover must scan with a standard reader.
+
+        Guards against the dark/light inversion bug (DIAGNOSTICS D7) that made
+        every synthetic cover unscannable while passing all shape/value tests.
+        """
+        rgb, _ = generate_cover_qr_rgb(
+            "STEGAQR123", version=4, ec_level="M", module_size=8, quiet_zone=4
+        )
+        assert verify_qr_decodable(rgb, "STEGAQR123") is True
+
+    def test_dark_module_is_black(self):
+        """The top-left finder corner is a dark module -> must be 0 (black)."""
+        matrix, _ = generate_qr("hello", version=2, module_size=1)
+        assert matrix[0, 0] == 0

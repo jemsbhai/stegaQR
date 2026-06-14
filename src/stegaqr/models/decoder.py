@@ -1,199 +1,152 @@
-"""Steganographic decoder networks — v2.
+"""Steganographic decoder networks — v3 (spatial bit-grid readout).
 
-Key changes from v1:
-  1. Replaces AdaptiveAvgPool2d(1) (which destroys spatial info) with
-     AdaptiveAvgPool2d to an intermediate spatial size, preserving
-     WHERE perturbations are located.
-  2. Multi-scale feature extraction with spatial pyramid.
-  3. Cross-layer attention retained for cross-channel mode.
+Matches the v3 encoders (see encoder.py). The decoder runs a convolutional stack,
+projects to a single map, then average-pools that map down to the Gh x Gw grid so
+each cell yields one bit logit. Because the read-out is shared across cells, it
+generalises across all bit positions and learns in a few hundred steps.
+
+Replaces v2's global-pool -> MLP(in*8*8 -> 256 -> L) head, which was a learning
+bottleneck (see experiments/DIAGNOSTICS.md finding D4).
+
+Public API is unchanged from v2.
 """
 
 from __future__ import annotations
+
+import math
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
-class ChannelAttention(nn.Module):
-    """Squeeze-and-excitation style channel attention."""
+def grid_dims(num_bits: int) -> tuple[int, int]:
+    gw = int(math.ceil(math.sqrt(num_bits)))
+    gh = int(math.ceil(num_bits / gw))
+    return gh, gw
 
-    def __init__(self, channels: int, reduction: int = 4):
+
+def _norm(num_channels: int) -> nn.Module:
+    """GroupNorm (no running stats) — see encoder._norm and DIAGNOSTICS finding D6."""
+    num_groups = max(1, num_channels // 8)
+    while num_channels % num_groups != 0:
+        num_groups -= 1
+    return nn.GroupNorm(num_groups, num_channels)
+
+
+class ConvBlock(nn.Module):
+    """Conv -> GroupNorm -> ReLU with optional residual."""
+
+    def __init__(self, in_ch: int, out_ch: int, residual: bool = False):
         super().__init__()
-        self.pool = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Sequential(
-            nn.Linear(channels, channels // reduction, bias=False),
-            nn.ReLU(inplace=True),
-            nn.Linear(channels // reduction, channels, bias=False),
-            nn.Sigmoid(),
-        )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        B, C, _, _ = x.shape
-        w = self.pool(x).view(B, C)
-        w = self.fc(w).view(B, C, 1, 1)
-        return x * w
-
-
-class DecoderBlock(nn.Module):
-    """Residual conv block with optional attention."""
-
-    def __init__(self, in_ch: int, out_ch: int, use_attention: bool = False):
-        super().__init__()
+        self.residual = residual and (in_ch == out_ch)
         self.conv1 = nn.Conv2d(in_ch, out_ch, 3, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(out_ch)
+        self.bn1 = _norm(out_ch)
         self.conv2 = nn.Conv2d(out_ch, out_ch, 3, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(out_ch)
-        self.attention = ChannelAttention(out_ch) if use_attention else nn.Identity()
-        self.residual = nn.Conv2d(in_ch, out_ch, 1) if in_ch != out_ch else nn.Identity()
+        self.bn2 = _norm(out_ch)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        identity = self.residual(x)
+        identity = x
         out = F.relu(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
-        out = self.attention(out)
-        return F.relu(out + identity)
+        if self.residual:
+            out = out + identity
+        return F.relu(out)
 
 
-class SpatialDecodeHead(nn.Module):
-    """Decode head that preserves spatial information.
+def _decoder_body(in_ch: int, hidden: int, num_blocks: int) -> nn.Sequential:
+    blocks = [ConvBlock(in_ch, hidden)]
+    for _ in range(num_blocks - 1):
+        blocks.append(ConvBlock(hidden, hidden, residual=True))
+    return nn.Sequential(*blocks)
 
-    Instead of global avg pool → linear, we:
-      1. Pool to an intermediate spatial size (e.g., 8×8)
-      2. Flatten spatial + channel dims
-      3. MLP to output bits
 
-    This preserves WHERE perturbations are while keeping parameter count manageable.
-    """
+class GridReadHead(nn.Module):
+    """Conv map -> average-pool to (gh, gw) -> flatten -> first L logits."""
 
-    def __init__(self, in_channels: int, capacity_bits: int, pool_size: int = 8):
+    def __init__(self, in_channels: int, capacity_bits: int):
         super().__init__()
-        self.pool = nn.AdaptiveAvgPool2d(pool_size)
-        flat_dim = in_channels * pool_size * pool_size
-        self.mlp = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(flat_dim, 256),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(256, capacity_bits),
-        )
+        self.capacity_bits = capacity_bits
+        self.gh, self.gw = grid_dims(capacity_bits)
+        self.to_map = nn.Conv2d(in_channels, 1, 1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.pool(x)
-        return self.mlp(x)
+        m = self.to_map(x)
+        cells = F.adaptive_avg_pool2d(m, (self.gh, self.gw))
+        return cells.view(cells.size(0), -1)[:, : self.capacity_bits]
 
 
 class SegregatedDecoder(nn.Module):
-    """Segregated-channel decoder — extracts hidden bits per channel independently.
+    """Per-channel decoder — each channel's bits are read only from that channel."""
 
-    Uses SpatialDecodeHead instead of global avg pool.
-    """
-
-    def __init__(self, capacity_bits: int = 99, hidden_channels: int = 64):
+    def __init__(self, capacity_bits: int = 99, hidden_channels: int = 64, num_blocks: int = 6):
         super().__init__()
-        bits_per_channel = capacity_bits // 3
-        self.bits_per_channel = bits_per_channel
-
-        self.channel_decoders = nn.ModuleList()
-        for _ in range(3):
-            self.channel_decoders.append(
-                nn.Sequential(
-                    DecoderBlock(1, hidden_channels, use_attention=True),
-                    DecoderBlock(hidden_channels, hidden_channels, use_attention=True),
-                    DecoderBlock(hidden_channels, hidden_channels, use_attention=True),
-                )
-            )
-
-        self.channel_heads = nn.ModuleList([
-            SpatialDecodeHead(hidden_channels, bits_per_channel)
-            for _ in range(3)
-        ])
+        self.bits_per_channel = capacity_bits // 3
+        self.channel_decoders = nn.ModuleList(
+            [_decoder_body(1, hidden_channels, num_blocks) for _ in range(3)]
+        )
+        self.channel_heads = nn.ModuleList(
+            [GridReadHead(hidden_channels, self.bits_per_channel) for _ in range(3)]
+        )
 
     def forward(self, stego: torch.Tensor) -> torch.Tensor:
         sub_payloads = []
-        for ch_idx in range(3):
-            channel = stego[:, ch_idx : ch_idx + 1, :, :]
-            features = self.channel_decoders[ch_idx](channel)
-            sub = self.channel_heads[ch_idx](features)
-            sub_payloads.append(sub)
+        for ch in range(3):
+            channel = stego[:, ch : ch + 1, :, :]
+            feat = self.channel_decoders[ch](channel)
+            sub_payloads.append(self.channel_heads[ch](feat))
         return torch.cat(sub_payloads, dim=1)
 
 
 class CrossChannelDecoder(nn.Module):
-    """Cross-channel decoder — extracts hidden bits from all channels jointly.
+    """Joint decoder — reads the full payload grid from all three channels."""
 
-    Uses SpatialDecodeHead for spatially-aware readout.
-    """
-
-    def __init__(
-        self,
-        capacity_bits: int = 100,
-        hidden_channels: int = 64,
-    ):
+    def __init__(self, capacity_bits: int = 100, hidden_channels: int = 64, num_blocks: int = 6):
         super().__init__()
-
-        self.enc1 = DecoderBlock(3, hidden_channels, use_attention=True)
-        self.enc2 = DecoderBlock(hidden_channels, hidden_channels * 2, use_attention=True)
-        self.enc3 = DecoderBlock(hidden_channels * 2, hidden_channels * 2, use_attention=True)
-
-        self.head = SpatialDecodeHead(hidden_channels * 2, capacity_bits)
+        self.body = _decoder_body(3, hidden_channels, num_blocks)
+        self.head = GridReadHead(hidden_channels, capacity_bits)
 
     def forward(self, stego: torch.Tensor) -> torch.Tensor:
-        x = self.enc1(stego)
-        x = self.enc2(x)
-        x = self.enc3(x)
-        return self.head(x)
+        return self.head(self.body(stego))
 
 
 class HybridDecoder(nn.Module):
-    """Hybrid decoder — QR-anchor-aware extraction with self-calibration.
+    """QR-anchor-aware decoder with self-calibration and a confidence head.
 
-    Uses the known QR structure for color calibration, then
-    spatially-aware decoding.
+    A small network predicts a 3x3 affine colour correction (calibration) from the
+    stego image; the corrected image is then decoded with the grid read-out. The
+    confidence head predicts the probability the payload was recovered correctly.
     """
 
-    def __init__(self, capacity_bits: int = 100, hidden_channels: int = 64):
+    def __init__(self, capacity_bits: int = 100, hidden_channels: int = 64, num_blocks: int = 6):
         super().__init__()
-
-        # Calibration network
         self.calibrator = nn.Sequential(
             nn.Conv2d(3, 32, 3, padding=1),
             nn.ReLU(),
             nn.AdaptiveAvgPool2d(8),
             nn.Flatten(),
-            nn.Linear(32 * 8 * 8, 12),  # 3x3 affine color correction
+            nn.Linear(32 * 8 * 8, 12),  # 3x3 matrix + 3 bias
         )
-
-        self.enc1 = DecoderBlock(3, hidden_channels, use_attention=True)
-        self.enc2 = DecoderBlock(hidden_channels, hidden_channels * 2, use_attention=True)
-        self.enc3 = DecoderBlock(hidden_channels * 2, hidden_channels * 2, use_attention=True)
-
-        self.payload_head = SpatialDecodeHead(hidden_channels * 2, capacity_bits)
-
+        self.body = _decoder_body(3, hidden_channels, num_blocks)
+        self.payload_head = GridReadHead(hidden_channels, capacity_bits)
         self.confidence_head = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
-            nn.Linear(hidden_channels * 2, 1),
+            nn.Linear(hidden_channels, 1),
             nn.Sigmoid(),
         )
 
-    def _apply_calibration(self, image: torch.Tensor, cal_params: torch.Tensor) -> torch.Tensor:
+    def _apply_calibration(self, image: torch.Tensor, cal: torch.Tensor) -> torch.Tensor:
         B = image.shape[0]
-        matrix = cal_params[:, :9].view(B, 3, 3)
-        bias = cal_params[:, 9:12].view(B, 3, 1, 1)
-        matrix = matrix + torch.eye(3, device=matrix.device).unsqueeze(0)
+        matrix = cal[:, :9].view(B, 3, 3) + torch.eye(3, device=cal.device).unsqueeze(0)
+        bias = cal[:, 9:12].view(B, 3, 1, 1)
         calibrated = torch.einsum("bij,bjhw->bihw", matrix, image) + bias
         return torch.clamp(calibrated, 0.0, 1.0)
 
     def forward(self, stego: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        cal_params = self.calibrator(stego)
-        calibrated = self._apply_calibration(stego, cal_params)
-
-        x = self.enc1(calibrated)
-        x = self.enc2(x)
-        x = self.enc3(x)
-
-        payload = self.payload_head(x)
-        confidence = self.confidence_head(x.detach())
-
+        cal = self.calibrator(stego)
+        calibrated = self._apply_calibration(stego, cal)
+        feat = self.body(calibrated)
+        payload = self.payload_head(feat)
+        confidence = self.confidence_head(feat.detach())
         return payload, confidence

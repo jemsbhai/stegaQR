@@ -30,6 +30,7 @@ def generate_qr(
     version: int = 4,
     ec_level: str = "M",
     module_size: int = 1,
+    quiet_zone: int = 0,
 ) -> tuple[np.ndarray, int]:
     """Generate a standard QR code as a binary numpy array.
 
@@ -43,11 +44,17 @@ def generate_qr(
         Error correction level: 'L', 'M', 'Q', 'H'.
     module_size : int
         Pixels per module (for output image).
+    quiet_zone : int
+        Width, in modules, of the white quiet zone (border) added on all sides.
+        The ISO/IEC 18004 standard mandates >=4 for reliable scanning. Default 0
+        keeps the bare symbol; pass >=4 to produce a scannable cover.
 
     Returns
     -------
     (matrix, actual_version)
-        matrix : np.ndarray, shape (d*module_size, d*module_size), dtype uint8, values {0, 255}
+        matrix : np.ndarray, shape (D*module_size, D*module_size), dtype uint8,
+                 values {0, 255}, where D = 4*version + 17 + 2*quiet_zone.
+                 Dark modules are 0 (black), light modules are 255 (white).
         actual_version : int
     """
     qr = qrcode.QRCode(
@@ -59,8 +66,13 @@ def generate_qr(
     qr.add_data(payload)
     qr.make(fit=False)
 
-    modules = qr.get_matrix()
-    matrix = np.array(modules, dtype=np.uint8) * 255
+    # qrcode.get_matrix() returns True for DARK modules. A scannable QR renders
+    # dark modules black (0) and light modules white (255), so invert the boolean.
+    modules = np.array(qr.get_matrix(), dtype=np.uint8)
+    matrix = np.where(modules, 0, 255).astype(np.uint8)
+
+    if quiet_zone > 0:
+        matrix = np.pad(matrix, quiet_zone, mode="constant", constant_values=255)
 
     if module_size > 1:
         matrix = np.kron(matrix, np.ones((module_size, module_size), dtype=np.uint8))
@@ -73,15 +85,17 @@ def generate_cover_qr_rgb(
     version: int = 4,
     ec_level: str = "M",
     module_size: int = 1,
+    quiet_zone: int = 0,
 ) -> tuple[np.ndarray, int]:
     """Generate a standard QR code as an RGB numpy array.
 
     Returns
     -------
     (image, actual_version)
-        image: np.ndarray, shape (d*module_size, d*module_size, 3), dtype float32, values in [0, 1]
+        image: np.ndarray, shape (D*module_size, D*module_size, 3), dtype float32,
+               values in [0, 1], where D = 4*version + 17 + 2*quiet_zone.
     """
-    matrix, actual_version = generate_qr(payload, version, ec_level, module_size)
+    matrix, actual_version = generate_qr(payload, version, ec_level, module_size, quiet_zone)
     rgb = np.stack([matrix, matrix, matrix], axis=-1).astype(np.float32) / 255.0
     return rgb, actual_version
 

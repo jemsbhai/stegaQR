@@ -34,8 +34,12 @@ desktop.ini
 # Experiment outputs (large files)
 experiments/*/checkpoints/
 experiments/*/logs/
+experiments/*/best_model.pt
 models/pretrained/*.pt
 models/pretrained/*.pth
+
+# Cygwin/MSYS crash dumps
+*.stackdump
 
 # Data (large files)
 data/raw/*.zip

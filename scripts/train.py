@@ -33,7 +33,10 @@ def main():
     parser.add_argument("--output-dir", type=str, default=None)
     parser.add_argument("--checkpoint-every", type=int, default=10)
     parser.add_argument("--no-distortion", action="store_true")
-    parser.add_argument("--perturbation-bound", type=float, default=0.3)
+    parser.add_argument("--perturbation-bound", type=float, default=0.1,
+                        help="Max per-channel perturbation. 0.1 = robust knee "
+                             "(100%% robust bit-acc, ~23dB PSNR); see "
+                             "experiments/IMPERCEPTIBILITY.md")
     parser.add_argument("--warmup-epochs", type=int, default=10,
                         help="Epochs of decode-only loss before adding perceptual/decodability")
 

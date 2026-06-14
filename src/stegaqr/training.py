@@ -23,7 +23,7 @@ from stegaqr.models.losses import StegaQRLoss
 from stegaqr.utils.seed import set_all_seeds, save_seeds
 
 
-def _get_encoder_decoder(mode: str, capacity_bits: int, device: str, perturbation_bound: float = 0.3):
+def _get_encoder_decoder(mode: str, capacity_bits: int, device: str, perturbation_bound: float = 0.1):
     """Instantiate the correct encoder-decoder pair for a given mode."""
     if mode == "segregated":
         from stegaqr.models.encoder import SegregatedEncoder
@@ -83,7 +83,7 @@ def train(
     lambda_perceptual: float = 1.0,
     lambda_decodability: float = 0.5,
     lambda_confidence: float = 0.1,
-    perturbation_bound: float = 0.3,
+    perturbation_bound: float = 0.1,
     use_distortion: bool = True,
     warmup_decode_only: int = 10,
 ) -> dict:

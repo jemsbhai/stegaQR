@@ -20,7 +20,10 @@ FULL = ROOT / "experiments" / "full"
 
 
 def _ci95(vals):
-    """Mean and half-width of a 95% CI (t-ish via 1.96; small-n falls back to range)."""
+    """Mean and half-width of a 95% CI (t-ish via 1.96; small-n falls back to range).
+    Infinite PSNR (collapsed-to-zero perturbation) is clipped to 99 dB so the table
+    stays readable and the collapse is still visible as an extreme value."""
+    vals = [min(v, 99.0) if math.isinf(v) else v for v in vals]
     n = len(vals)
     m = sum(vals) / n
     if n < 2:

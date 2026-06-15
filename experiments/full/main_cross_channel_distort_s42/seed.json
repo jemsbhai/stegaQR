@@ -1,0 +1,8 @@
+{
+  "master_seed": 42,
+  "python_random": 42,
+  "numpy": 42,
+  "torch": 42,
+  "torch_cuda": 42,
+  "notes": "torch.backends.cudnn.deterministic=True; some conv backward ops may remain non-deterministic on CUDA"
+}

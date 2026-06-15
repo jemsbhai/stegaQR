@@ -1,0 +1,69 @@
+{
+  "config": {
+    "mode": "segregated",
+    "capacity_bits": 99,
+    "module_size": 4,
+    "perturbation_bound": 0.3,
+    "seed_train": 7,
+    "use_distortion_train": true,
+    "lambda_perceptual": 4.0,
+    "checkpoint": "E:\\data\\code\\claudecode\\mQRstego\\experiments\\full\\main_segregated_distort_s7\\best_model.pt",
+    "epoch": 6
+  },
+  "clean": {
+    "bit_acc": 1.0,
+    "full_decode": 1.0,
+    "full_decode_ci": [
+      0.9708630437264916,
+      1.0
+    ],
+    "psnr": 19.90078932481808,
+    "ssim": 0.9778519729152322,
+    "public_decode": 1.0
+  },
+  "distorted": {
+    "bit_acc": 1.0,
+    "full_decode": 1.0,
+    "full_decode_ci": [
+      0.9708630437264916,
+      1.0
+    ],
+    "psnr": 19.90078932481808,
+    "ssim": 0.9778519729152322,
+    "public_decode": 1.0
+  },
+  "ecc": {
+    "rep3": {
+      "net_bits": 33,
+      "rate": 0.3333333333333333,
+      "msg_bit_acc": 0.9992897727272727,
+      "msg_decode": 0.9765625,
+      "msg_decode_ci": [
+        0.9333562549485678,
+        0.9919975836032445
+      ]
+    },
+    "rep5": {
+      "net_bits": 19,
+      "rate": 0.2,
+      "msg_bit_acc": 1.0,
+      "msg_decode": 1.0,
+      "msg_decode_ci": [
+        0.9708630437264916,
+        1.0
+      ]
+    },
+    "hamming74": {
+      "net_bits": 56,
+      "rate": 0.5714285714285714,
+      "msg_bit_acc": 1.0,
+      "msg_decode": 1.0,
+      "msg_decode_ci": [
+        0.9708630437264916,
+        1.0
+      ]
+    }
+  },
+  "tag": "main_segregated_distort_s7",
+  "train_seconds": 965.9
+}

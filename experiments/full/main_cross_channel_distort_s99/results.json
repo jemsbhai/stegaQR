@@ -1,0 +1,69 @@
+{
+  "config": {
+    "mode": "cross_channel",
+    "capacity_bits": 100,
+    "module_size": 4,
+    "perturbation_bound": 0.3,
+    "seed_train": 99,
+    "use_distortion_train": true,
+    "lambda_perceptual": 4.0,
+    "checkpoint": "E:\\data\\code\\claudecode\\mQRstego\\experiments\\full\\main_cross_channel_distort_s99\\best_model.pt",
+    "epoch": 5
+  },
+  "clean": {
+    "bit_acc": 0.999921875,
+    "full_decode": 0.9921875,
+    "full_decode_ci": [
+      0.9570737405611394,
+      0.9986195681071257
+    ],
+    "psnr": 20.174398561890747,
+    "ssim": 0.9790850854478776,
+    "public_decode": 1.0
+  },
+  "distorted": {
+    "bit_acc": 0.999609375,
+    "full_decode": 0.9609375,
+    "full_decode_ci": [
+      0.9118129792331631,
+      0.9832013892021962
+    ],
+    "psnr": 20.174398561890747,
+    "ssim": 0.9790850854478776,
+    "public_decode": 1.0
+  },
+  "ecc": {
+    "rep3": {
+      "net_bits": 33,
+      "rate": 0.3333333333333333,
+      "msg_bit_acc": 0.9995265151515151,
+      "msg_decode": 0.984375,
+      "msg_decode_ci": [
+        0.9448190233201829,
+        0.9957045502898559
+      ]
+    },
+    "rep5": {
+      "net_bits": 20,
+      "rate": 0.2,
+      "msg_bit_acc": 0.999609375,
+      "msg_decode": 0.9921875,
+      "msg_decode_ci": [
+        0.9570737405611394,
+        0.9986195681071257
+      ]
+    },
+    "hamming74": {
+      "net_bits": 56,
+      "rate": 0.5714285714285714,
+      "msg_bit_acc": 1.0,
+      "msg_decode": 1.0,
+      "msg_decode_ci": [
+        0.9708630437264916,
+        1.0
+      ]
+    }
+  },
+  "tag": "main_cross_channel_distort_s99",
+  "train_seconds": 427.0
+}

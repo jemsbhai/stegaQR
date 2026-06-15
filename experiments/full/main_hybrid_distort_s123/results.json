@@ -1,0 +1,69 @@
+{
+  "config": {
+    "mode": "hybrid",
+    "capacity_bits": 100,
+    "module_size": 4,
+    "perturbation_bound": 0.3,
+    "seed_train": 123,
+    "use_distortion_train": true,
+    "lambda_perceptual": 4.0,
+    "checkpoint": "E:\\data\\code\\claudecode\\mQRstego\\experiments\\full\\main_hybrid_distort_s123\\best_model.pt",
+    "epoch": 9
+  },
+  "clean": {
+    "bit_acc": 0.939453125,
+    "full_decode": 0.0,
+    "full_decode_ci": [
+      0.0,
+      0.029136956273508416
+    ],
+    "psnr": 30.254496815597488,
+    "ssim": 0.9980465015396476,
+    "public_decode": 1.0
+  },
+  "distorted": {
+    "bit_acc": 0.9321875,
+    "full_decode": 0.0,
+    "full_decode_ci": [
+      0.0,
+      0.029136956273508416
+    ],
+    "psnr": 30.254496815597488,
+    "ssim": 0.9980465015396476,
+    "public_decode": 1.0
+  },
+  "ecc": {
+    "rep3": {
+      "net_bits": 33,
+      "rate": 0.3333333333333333,
+      "msg_bit_acc": 1.0,
+      "msg_decode": 1.0,
+      "msg_decode_ci": [
+        0.9708630437264916,
+        1.0
+      ]
+    },
+    "rep5": {
+      "net_bits": 20,
+      "rate": 0.2,
+      "msg_bit_acc": 1.0,
+      "msg_decode": 1.0,
+      "msg_decode_ci": [
+        0.9708630437264916,
+        1.0
+      ]
+    },
+    "hamming74": {
+      "net_bits": 56,
+      "rate": 0.5714285714285714,
+      "msg_bit_acc": 0.9454520089285714,
+      "msg_decode": 0.109375,
+      "msg_decode_ci": [
+        0.06627879570700111,
+        0.17523445138167731
+      ]
+    }
+  },
+  "tag": "main_hybrid_distort_s123",
+  "train_seconds": 433.1
+}

@@ -80,21 +80,93 @@ In our ICMLA multispecqr paper, the ML decoder (trained on clean data only) fail
 
 ### Results
 
-(To be filled after experiment completes)
+See addendum 2026-06-15 below (the original v2 architecture failed; the experiment
+was re-run after a root-cause fix). Aggregated tables: experiments/full/RESULTS.md.
 
 ### Observations
 
-(To be filled after experiment completes)
+See addendum 2026-06-15.
 
 ### Interpretation
 
-(To be filled after experiment completes)
+See addendum 2026-06-15.
 
 ### Artifacts
 
-- Checkpoints: experiments/exp_001{a,b}_{seg,cross,hybrid}_{clean,distort}/checkpoints/
-- Logs: experiments/exp_001{a,b}_{seg,cross,hybrid}_{clean,distort}/logs/
-- Config: experiments/exp_001{a,b}_{seg,cross,hybrid}_{clean,distort}/config.json
-- Seeds: experiments/exp_001{a,b}_{seg,cross,hybrid}_{clean,distort}/seed.json
+- Per-run metrics: experiments/full/*/results.json (best_model.pt gitignored)
+- Aggregated: experiments/full/RESULTS.md, experiments/full/results.csv
+- Figures: figures/
+- Config/seeds: experiments/full/*/config.json, seed.json
+
+---
+
+## EXP-001 — Addendum (2026-06-15): root-cause fix and re-run
+
+**Researcher:** Muntaser Syed + automated diagnosis (Claude)
+**Status:** completed
+
+### Correction to the original plan
+The first EXP-001 runs (v2 architecture) **failed** — bit accuracy plateaued at
+~54% (chance) instead of the hypothesised >95%. Rigorous diagnosis
+(experiments/DIAGNOSTICS.md) found **three independent defects**, all fixed:
+
+1. **Global payload broadcast** → replaced with a **spatial bit-grid** (each bit in
+   its own grid cell; weight-shared conv reads all cells). v2 broadcast forced the
+   net to learn L independent global patterns and could not generalise (~chance at
+   L=100). Fix: 100% held-out bit accuracy in ~250 steps.
+2. **BatchNorm train/eval mismatch** → **GroupNorm**. With a tiny perturbation,
+   BN running stats diverged from batch stats; train 99.8% / val 50%.
+3. **Colour-inverted covers** (`get_matrix()` True=dark mapped to white) → every
+   synthetic cover was unscannable, voiding the public-decode premise. Fixed mapping
+   + optional quiet zone. Regression-tested.
+
+Hardware note: actual GPU is an RTX 4090 **Laptop (16GB)**, not the 24GB desktop
+assumed; experiments use module_size=4 (132x132), batch 16.
+
+### Recipe (fixed pipeline)
+Spatial-grid encoder/decoder (GroupNorm), capacity 100, QR v4 / EC M, module_size 4,
+batch 16, 24 epochs, Adam lr 1e-3 cosine. Adaptive embedding: decode-only warmup
+(3 ep) then linear ramp of the perceptual loss (8 ep), perturbation_bound 0.3,
+lambda_perceptual 4. Best model = max(robust full-decode + robust bit-acc + small
+PSNR tie-break) under stochastic distortion. 5 seeds {42,123,7,99,2024}.
+
+### Results — mode comparison (cap 100, mean +/- 95% CI, n=5 seeds)
+
+| mode | training | clean FDR | distorted FDR | PSNR (dB) | SSIM | public-decode |
+|------|----------|-----------|---------------|-----------|------|---------------|
+| cross_channel | clean      | 99.5 | 10.0 +/-19.6 | 61.7 | 1.00 | 100 |
+| cross_channel | distortion | 99.8 | **99.2 +/-1.5** | 19.0 | 0.97 | 100 |
+| segregated    | clean      | 100.0 | 13.9 +/-11.3 | 63.5 | 1.00 | 100 |
+| segregated    | distortion | 99.8 | **99.1 +/-0.8** | 17.6 | 0.96 | 100 |
+| hybrid        | clean      | 0.0 | 0.0 | (collapsed) | 1.00 | 100 |
+| hybrid        | distortion | 0.0 | 0.0 | (collapsed) | 1.00 | 100 |
+
+(FDR = full-decode rate, all 100 bits correct. Values without CI are ~0 variance.)
+
+### Studies
+- **ECC** (distortion cross_channel, under distortion): Hamming(7,4) **100%** message
+  decode (56 net bits); rep3 99.5% (33 bits); rep5 98.1% (20 bits); raw 100-bit 99.2%.
+- **Capacity** (cross_channel, distortion): 25-200 bits hold ~99-100% distorted
+  bit-acc; FDR 97.7% @25, 99.2% @100, more variable @150 (one weak seed).
+- **Classical LSB baseline**: clean 100% / distorted **53.8% bit, 3.9% FDR** — LSB is
+  destroyed by distortion.
+- (Ablations — broadcast baseline, mask-aware hybrid — appended when complete.)
+
+### Interpretation
+- **The central hypothesis holds.** End-to-end distortion training converts a
+  fragile clean-trained codec (10-14% distorted message recovery) into a robust one
+  (**99%+**), at the cost of imperceptibility (~62 dB clean-trained -> ~18 dB). This
+  is exactly the ICMLA-multispecqr weakness (clean-trained decoder failing on
+  photometric shifts) that the differentiable distortion layer was meant to fix.
+- The public QR remains **100% standard-decodable** in every setting — the
+  steganography does not break the cover.
+- **cross_channel and segregated are equivalent** (~99% robust FDR); segregated adds
+  per-channel fault isolation at no measured cost.
+- **Hybrid is the open problem.** With the hard finder-mask + adaptive perceptual
+  ramp it is unstable (collapses to ~0 perturbation on several seeds; raw accuracy is
+  also capped ~94% because finder-pattern cells cannot carry bits). The mask-aware
+  hybrid variant + a gentler perceptual schedule are the fix under evaluation.
+- ECC removes the residual full-message brittleness: 100% message recovery with
+  Hamming(7,4) at the distortion-trained operating point.
 
 ---

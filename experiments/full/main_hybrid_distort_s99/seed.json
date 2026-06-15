@@ -1,0 +1,8 @@
+{
+  "master_seed": 99,
+  "python_random": 99,
+  "numpy": 99,
+  "torch": 99,
+  "torch_cuda": 99,
+  "notes": "torch.backends.cudnn.deterministic=True; some conv backward ops may remain non-deterministic on CUDA"
+}

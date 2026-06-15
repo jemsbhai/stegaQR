@@ -1,0 +1,8 @@
+{
+  "master_seed": 2024,
+  "python_random": 2024,
+  "numpy": 2024,
+  "torch": 2024,
+  "torch_cuda": 2024,
+  "notes": "torch.backends.cudnn.deterministic=True; some conv backward ops may remain non-deterministic on CUDA"
+}

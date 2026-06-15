@@ -161,15 +161,25 @@ class HybridDecoder(nn.Module):
     """
 
     def __init__(self, capacity_bits: int = 100, hidden_channels: int = 64, num_blocks: int = 6,
-                 mask_aware: bool = False, qr_version: int = 4):
+                 mask_aware: bool = False, qr_version: int = 4, use_calibration: bool = True):
         super().__init__()
-        self.calibrator = nn.Sequential(
-            nn.Conv2d(3, 32, 3, padding=1),
-            nn.ReLU(),
-            nn.AdaptiveAvgPool2d(8),
-            nn.Flatten(),
-            nn.Linear(32 * 8 * 8, 12),  # 3x3 matrix + 3 bias
-        )
+        self.use_calibration = use_calibration
+        if use_calibration:
+            self.calibrator = nn.Sequential(
+                nn.Conv2d(3, 32, 3, padding=1),
+                nn.ReLU(),
+                nn.AdaptiveAvgPool2d(8),
+                nn.Flatten(),
+                nn.Linear(32 * 8 * 8, 12),  # 3x3 matrix + 3 bias
+            )
+            # Zero-init the calibration head so it is the IDENTITY transform at init
+            # (matrix = I, bias = 0) and is learned as a residual. Without this, a random
+            # affine colour transform corrupts the stego before decoding and the hybrid
+            # decoder cold-starts at chance for many epochs (DIAGNOSTICS D9). Even so,
+            # the calibration branch destabilises the cold-start (stochastic chance
+            # saddle); use_calibration=False is the stable default for training.
+            nn.init.zeros_(self.calibrator[-1].weight)
+            nn.init.zeros_(self.calibrator[-1].bias)
         self.body = _decoder_body(3, hidden_channels, num_blocks)
         self.payload_head = (MaskAwareReadHead(hidden_channels, qr_version, capacity_bits)
                              if mask_aware else GridReadHead(hidden_channels, capacity_bits))
@@ -188,9 +198,9 @@ class HybridDecoder(nn.Module):
         return torch.clamp(calibrated, 0.0, 1.0)
 
     def forward(self, stego: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        cal = self.calibrator(stego)
-        calibrated = self._apply_calibration(stego, cal)
-        feat = self.body(calibrated)
+        if self.use_calibration:
+            stego = self._apply_calibration(stego, self.calibrator(stego))
+        feat = self.body(stego)
         payload = self.payload_head(feat)
         confidence = self.confidence_head(feat.detach())
         return payload, confidence

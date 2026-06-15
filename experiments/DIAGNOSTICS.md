@@ -192,6 +192,40 @@ pending re-training with the D7 quiet-zone fix.)
 
 ---
 
+## D9 — Hybrid mode stabilization (2026-06-15)
+
+The hybrid mode was the one weak/unstable mode in the EXP-001 matrix (collapse to
+zero perturbation on several seeds; raw accuracy capped ~94%). Two distinct causes:
+
+1. **Accuracy cap (~94%)**: the uniform bit-grid placed bits on finder-pattern
+   cells, which the hybrid mask cannot perturb -> those bits are lost. Fix: the
+   **mask-aware grid** (finer grid; bits placed only on data-rich cells).
+2. **Collapse / unstable cold-start**: the **calibration network** is the cause.
+   Its final Linear was randomly initialised, so at init it applied a random affine
+   colour transform to the stego *before* decoding, corrupting the input. Zero-init
+   (identity at start) helped but the calibration branch still gives a *stochastic
+   chance-saddle*: with cuDNN non-determinism the decoder escapes chance only
+   sometimes within the warmup window; when the perceptual ramp starts before the
+   code is established it zeroes the perturbation (collapse).
+
+   Decisive test: **hybrid with the calibration branch removed** cold-starts
+   instantly (epoch 1: 99.96% bit accuracy) and is stable through the full adaptive
+   recipe. The convolutional decoder handles photometric distortion implicitly (as
+   cross_channel does without any calibration), so the explicit calibration branch
+   adds instability with no benefit.
+
+Fix: hybrid default = **mask-aware grid + no calibration** (`mask_aware=True`,
+`use_calibration=False`). Result (held-out, n=96): 100% bit accuracy, 100% full-
+decode, 100% public decode (clean AND distorted), 21.9 dB / SSIM 0.986, and
+ECC rep3 / Hamming(7,4) -> **100% message decode**. Hybrid now matches
+cross_channel / segregated.
+
+**Finding D9 — hybrid stabilized.** The QR-anchored mode now provides guaranteed
+structural preservation (mask) AND full robust decoding, removing the last open
+item from the mode comparison.
+
+---
+
 ## Summary: three independent bugs, all fixed
 
 1. **D5 global broadcast** -> spatial bit-grid encoding.

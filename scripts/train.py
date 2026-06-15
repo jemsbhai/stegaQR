@@ -49,6 +49,8 @@ def main():
                         help="grid = spatial bit-grid (ours); broadcast = HiDDeN-style baseline")
     parser.add_argument("--mask-aware", action="store_true",
                         help="hybrid only: place bits on data-rich cells (avoid finder patterns)")
+    parser.add_argument("--no-calibration", action="store_true",
+                        help="hybrid only: disable the calibration branch (stabilises cold-start)")
 
     args = parser.parse_args()
 
@@ -77,6 +79,7 @@ def main():
         perc_ramp_epochs=args.perc_ramp_epochs,
         arch=args.arch,
         mask_aware=args.mask_aware,
+        use_calibration=not args.no_calibration,
     )
 
     print(f"\nFinal best validation accuracy: {result['best_val_acc']:.4f}")

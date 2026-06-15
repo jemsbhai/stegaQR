@@ -58,12 +58,19 @@ CAPACITIES = [25, 50, 150, 200]   # 100 comes from the main matrix
 SEEDS_CAP = [42, 123, 7]
 
 
-def _run_one(mode, capacity, seed, use_distortion, tag, arch="grid", mask_aware=False):
+def _run_one(mode, capacity, seed, use_distortion, tag, arch="grid",
+             mask_aware=False, use_calibration=True):
     out_dir = OUT / tag
     res_path = out_dir / "results.json"
     if res_path.exists():
         print(f"[skip] {tag} (results.json exists)")
         return json.loads(res_path.read_text())
+
+    # Hybrid is stabilised with the mask-aware grid + no calibration branch (the
+    # calibration network's random init gives a stochastic chance-saddle cold-start;
+    # the conv decoder handles photometric distortion implicitly -- see DIAGNOSTICS D9).
+    if mode == "hybrid":
+        mask_aware, use_calibration = True, False
 
     print(f"\n{'='*70}\n[run] {tag}\n{'='*70}", flush=True)
     t0 = time.time()
@@ -75,6 +82,7 @@ def _run_one(mode, capacity, seed, use_distortion, tag, arch="grid", mask_aware=
         lambda_perceptual=LAMBDA_PERC, perturbation_bound=PBOUND,
         use_distortion=use_distortion, warmup_decode_only=WARMUP,
         perc_ramp_epochs=RAMP, arch=arch, mask_aware=mask_aware,
+        use_calibration=use_calibration,
     )
     metrics = evaluate_checkpoint(str(out_dir / "best_model.pt"), n=EVAL_N,
                                   eccs=ECCS, seed=1234 + seed)

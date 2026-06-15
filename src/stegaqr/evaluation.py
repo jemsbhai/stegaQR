@@ -27,7 +27,7 @@ from stegaqr.coding import get_ecc
 
 
 def build_models(mode, capacity_bits, device, perturbation_bound,
-                 arch="grid", mask_aware=False, qr_version=4):
+                 arch="grid", mask_aware=False, qr_version=4, use_calibration=True):
     """Instantiate encoder/decoder for a mode. perturbation_bound MUST match the
     trained value (it scales the encoder output; it is not a learned weight).
     arch/mask_aware must also match the trained checkpoint."""
@@ -51,7 +51,8 @@ def build_models(mode, capacity_bits, device, perturbation_bound,
         from stegaqr.models.decoder import HybridDecoder
         return (HybridEncoder(capacity_bits, perturbation_bound=perturbation_bound,
                               mask_aware=mask_aware, qr_version=qr_version).to(device),
-                HybridDecoder(capacity_bits, mask_aware=mask_aware, qr_version=qr_version).to(device), True)
+                HybridDecoder(capacity_bits, mask_aware=mask_aware, qr_version=qr_version,
+                              use_calibration=use_calibration).to(device), True)
     raise ValueError(mode)
 
 
@@ -108,7 +109,8 @@ def evaluate_checkpoint(ckpt_path, n=128, eccs=("rep3", "rep5"), seed=1234,
     enc, dec, is_hybrid = build_models(mode, cap, device, pbound,
                                        arch=cfg.get("arch", "grid"),
                                        mask_aware=cfg.get("mask_aware", False),
-                                       qr_version=qrv)
+                                       qr_version=qrv,
+                                       use_calibration=cfg.get("use_calibration", True))
     enc.load_state_dict(ckpt["encoder_state"]); dec.load_state_dict(ckpt["decoder_state"])
     enc.eval(); dec.eval()
 
@@ -191,7 +193,8 @@ def evaluate_real_distortions(ckpt_path, n=128, presets=None, ecc_name="rep3",
     qrv, ms, ec = cfg["qr_version"], cfg["module_size"], cfg["ec_level"]
     enc, dec, is_hybrid = build_models(mode, cap, device, cfg.get("perturbation_bound", 0.1),
                                        arch=cfg.get("arch", "grid"),
-                                       mask_aware=cfg.get("mask_aware", False), qr_version=qrv)
+                                       mask_aware=cfg.get("mask_aware", False), qr_version=qrv,
+                                       use_calibration=cfg.get("use_calibration", True))
     enc.load_state_dict(ckpt["encoder_state"]); dec.load_state_dict(ckpt["decoder_state"])
     enc.eval(); dec.eval()
 

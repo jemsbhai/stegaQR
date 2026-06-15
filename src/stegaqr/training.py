@@ -25,7 +25,8 @@ from stegaqr.utils.seed import set_all_seeds, save_seeds
 
 
 def _get_encoder_decoder(mode: str, capacity_bits: int, device: str, perturbation_bound: float = 0.1,
-                         arch: str = "grid", mask_aware: bool = False, qr_version: int = 4):
+                         arch: str = "grid", mask_aware: bool = False, qr_version: int = 4,
+                         use_calibration: bool = True):
     """Instantiate the correct encoder-decoder pair for a given mode.
 
     arch='grid' (default) uses the spatial bit-grid; arch='broadcast' uses the
@@ -70,7 +71,8 @@ def _get_encoder_decoder(mode: str, capacity_bits: int, device: str, perturbatio
             mask_aware=mask_aware, qr_version=qr_version,
         ).to(device)
         decoder = HybridDecoder(capacity_bits=capacity_bits,
-                                mask_aware=mask_aware, qr_version=qr_version).to(device)
+                                mask_aware=mask_aware, qr_version=qr_version,
+                                use_calibration=use_calibration).to(device)
         return encoder, decoder, capacity_bits, True
 
     else:
@@ -106,6 +108,7 @@ def train(
     perc_ramp_epochs: int = 10,
     arch: str = "grid",
     mask_aware: bool = False,
+    use_calibration: bool = True,
 ) -> dict:
     """Train a StegaQR encoder-decoder pair.
 
@@ -137,6 +140,7 @@ def train(
     encoder, decoder, capacity_bits, use_confidence = _get_encoder_decoder(
         mode, capacity_bits, device, perturbation_bound,
         arch=arch, mask_aware=mask_aware, qr_version=qr_version,
+        use_calibration=use_calibration,
     )
 
     print(f"Mode: {mode}")
@@ -195,6 +199,7 @@ def train(
         "perc_ramp_epochs": perc_ramp_epochs,
         "arch": arch,
         "mask_aware": mask_aware,
+        "use_calibration": use_calibration,
         "encoder_params": _count_parameters(encoder),
         "decoder_params": _count_parameters(decoder),
         "spatial_size": spatial_size,

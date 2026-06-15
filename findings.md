@@ -10,7 +10,10 @@ Broadcasting each payload bit as a constant spatial channel (the HiDDeN/StegaSta
 convention) fails for QR covers: at 100 bits it never escapes chance accuracy. Laying
 each bit in its own cell of an upsampled grid — so a single weight-shared convolution
 learns to read every cell — reaches 100% held-out bit accuracy in a few hundred steps.
-This is the core architectural finding (DIAGNOSTICS D2–D5).
+This is the core architectural finding (DIAGNOSTICS D2–D5). Head-to-head at equal
+budget (decode-only, 100 bits): the spatial grid reaches **100%** bit accuracy while
+the global-broadcast baseline stays at **~52% (chance)** — clean and under distortion
+(RESULTS.md study 5).
 
 ### F2 — End-to-end distortion training is necessary and sufficient for robustness
 Clean-trained codecs are near-perfectly imperceptible (~62 dB PSNR) but collapse under

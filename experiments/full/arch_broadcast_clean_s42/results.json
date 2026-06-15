@@ -1,0 +1,37 @@
+{
+  "config": {
+    "mode": "cross_channel",
+    "capacity_bits": 100,
+    "module_size": 4,
+    "perturbation_bound": 0.3,
+    "seed_train": 42,
+    "use_distortion_train": false,
+    "lambda_perceptual": 0.0,
+    "checkpoint": "experiments/full/arch_broadcast_clean_s42/best_model.pt",
+    "epoch": 19
+  },
+  "clean": {
+    "bit_acc": 0.5246875,
+    "full_decode": 0.0,
+    "full_decode_ci": [
+      0.0,
+      0.029136956273508416
+    ],
+    "psnr": 18.647982035102025,
+    "ssim": 0.9610763979144394,
+    "public_decode": 1.0
+  },
+  "distorted": {
+    "bit_acc": 0.5090625,
+    "full_decode": 0.0,
+    "full_decode_ci": [
+      0.0,
+      0.029136956273508416
+    ],
+    "psnr": 18.647982035102025,
+    "ssim": 0.9610763979144394,
+    "public_decode": 1.0
+  },
+  "ecc": {},
+  "tag": "arch_broadcast_clean_s42"
+}

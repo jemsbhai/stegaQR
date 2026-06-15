@@ -150,7 +150,13 @@ PSNR tie-break) under stochastic distortion. 5 seeds {42,123,7,99,2024}.
   bit-acc; FDR 97.7% @25, 99.2% @100, more variable @150 (one weak seed).
 - **Classical LSB baseline**: clean 100% / distorted **53.8% bit, 3.9% FDR** — LSB is
   destroyed by distortion.
-- (Ablations — broadcast baseline, mask-aware hybrid — appended when complete.)
+- **Architecture ablation** (decode-only, 100 bits, seed 42): the spatial grid reaches
+  **100%** bit accuracy (clean & distorted); the HiDDeN-style global-broadcast baseline
+  stays at **~52% (chance)** — the grid layout is the enabling contribution.
+- **Mask-aware hybrid / broadcast under the adaptive recipe (lambda_perc=4)**: both
+  collapse (perturbation -> 0) — the weaker decoders cannot hold signal against the
+  perceptual loss. The grid cross/segregated modes do not. Hybrid stabilisation
+  (gentler perceptual schedule) remains open.
 
 ### Interpretation
 - **The central hypothesis holds.** End-to-end distortion training converts a

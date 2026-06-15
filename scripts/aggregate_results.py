@@ -124,6 +124,21 @@ def main():
             f"{_fmt([r['distorted']['ssim'] for r in rs],1)} |")
     lines.append("")
 
+    # ---- Study 5: architecture ablation (spatial grid vs global broadcast) ----
+    arch = [r for r in runs if r.get("tag", "").startswith("arch_")]
+    if arch:
+        lines += ["## 5. Architecture ablation: spatial grid vs broadcast (decode-only)", "",
+                  "| arch | training | clean bit-acc | clean FDR | dist bit-acc | dist FDR | PSNR (dB) |",
+                  "|---|---|---|---|---|---|---|"]
+        for r in sorted(arch, key=lambda r: r["tag"]):
+            t = r["tag"].replace("arch_", "").replace("_s42", "")
+            a, tr = t.rsplit("_", 1)
+            lines.append(
+                f"| {a} | {tr} | {r['clean']['bit_acc']*100:.1f}% | {r['clean']['full_decode']*100:.1f}% | "
+                f"{r['distorted']['bit_acc']*100:.1f}% | {r['distorted']['full_decode']*100:.1f}% | "
+                f"{min(r['clean']['psnr'],99):.1f} |")
+        lines.append("")
+
     # ---- Study 4: classical baseline ----
     cl = [r for r in runs if r.get("tag") == "classical_lsb"]
     if cl:

@@ -32,6 +32,15 @@ Aggregated from per-run `results.json`. Values are mean +/- 95% CI across seeds.
 | 150 | 3 | 99.3 +/- 1.4 | 86.5 +/- 24.2 | 23.90 +/- 10.39 | 0.98 +/- 0.02 |
 | 200 | 3 | 100.0 +/- 0.0 | 95.3 +/- 7.0 | 19.00 +/- 0.84 | 0.97 +/- 0.01 |
 
+## 5. Architecture ablation: spatial grid vs broadcast (decode-only)
+
+| arch | training | clean bit-acc | clean FDR | dist bit-acc | dist FDR | PSNR (dB) |
+|---|---|---|---|---|---|---|
+| broadcast | clean | 52.5% | 0.0% | 50.9% | 0.0% | 18.6 |
+| broadcast | distort | 51.4% | 0.0% | 51.6% | 0.0% | 21.1 |
+| grid | clean | 100.0% | 100.0% | 100.0% | 100.0% | 17.1 |
+| grid | distort | 100.0% | 100.0% | 100.0% | 100.0% | 17.0 |
+
 ## 4. Classical LSB baseline (no training)
 
 | setting | bit-acc | full-decode | PSNR (dB) | SSIM | public-decode |

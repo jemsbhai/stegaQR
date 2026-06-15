@@ -384,7 +384,10 @@ def train(
         # accuracy near 94%): it then picks the most-accurate model, not a collapsed
         # high-PSNR one. Warmup epochs are excluded.
         score = val_fdr_robust + val_acc_robust + 0.001 * min(val_psnr, 60.0)
-        if not in_warmup and score > best_score:
+        # Fall back to selecting during warmup if the whole run is decode-only
+        # (warmup_decode_only >= epochs) -- otherwise best_model.pt is never written.
+        selectable = (not in_warmup) or (warmup_decode_only >= epochs)
+        if selectable and score > best_score:
             best_score = score
             best_val_acc = val_acc
             torch.save({
@@ -397,6 +400,14 @@ def train(
                 "val_fdr_robust": val_fdr_robust,
                 "val_psnr": val_psnr,
             }, output_path / "best_model.pt")
+
+    # Safety net: always leave a usable checkpoint even if selection never fired.
+    if not (output_path / "best_model.pt").exists():
+        torch.save({
+            "epoch": epochs, "encoder_state": encoder.state_dict(),
+            "decoder_state": decoder.state_dict(), "config": config,
+            "val_acc": val_acc, "val_psnr": val_psnr,
+        }, output_path / "best_model.pt")
 
     with open(output_path / "logs" / "history.json", "w") as f:
         json.dump(history, f, indent=2)

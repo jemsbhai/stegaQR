@@ -1,0 +1,16 @@
+found 10 photos in capture/screen1/stegaqrtest
+  PXL_20260615_135555817.jpg: public='8FG4N24JW1QG'  hidden=OK
+  PXL_20260615_135605657.jpg: public='SELUXQCNU98K'  hidden=OK
+  PXL_20260615_135615592.jpg: public='5GWY10M2GBWA'  hidden=OK
+  PXL_20260615_135621839.jpg: public='W3X1SGWCMV39'  hidden=OK
+  PXL_20260615_135628309.jpg: public='QT4REP6L368E'  hidden=OK
+  PXL_20260615_135634023.MP.jpg: public='CY5F88TUXVVH'  hidden=OK
+  PXL_20260615_135643293.jpg: public='2Q4NKZCREV2N'  hidden=OK
+  PXL_20260615_135650314.jpg: public='CCH6SXQ8CLW3'  hidden=OK
+  PXL_20260615_135657836.MP.jpg: public='QPRBN5FSEHKS'  hidden=OK
+  PXL_20260615_135706116.MP.jpg: public='PNEJR6PL5WQS'  hidden=OK
+
+=== 10 images ===
+QR located            : 10/10
+public decode (pyzbar): 10/10
+hidden MESSAGE decode : 10/10

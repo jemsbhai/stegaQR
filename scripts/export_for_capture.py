@@ -51,7 +51,10 @@ def main():
     cfg = ckpt["config"]
     mode, cap = cfg["mode"], cfg["capacity_bits"]
     qrv, ms, ec = cfg["qr_version"], cfg["module_size"], cfg["ec_level"]
-    enc, dec, is_hybrid = build_models(mode, cap, device, cfg.get("perturbation_bound", 0.1))
+    enc, dec, is_hybrid = build_models(
+        mode, cap, device, cfg.get("perturbation_bound", 0.1),
+        arch=cfg.get("arch", "grid"), mask_aware=cfg.get("mask_aware", False),
+        qr_version=qrv, use_calibration=cfg.get("use_calibration", True))
     enc.load_state_dict(ckpt["encoder_state"]); dec.load_state_dict(ckpt["decoder_state"])
     enc.eval()
 

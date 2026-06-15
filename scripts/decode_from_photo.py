@@ -49,8 +49,10 @@ def load_model(manifest, device, checkpoint=None):
     ckpt_path = checkpoint or manifest["checkpoint"]
     ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
     cfg = ckpt["config"]
-    enc, dec, is_hybrid = build_models(cfg["mode"], cfg["capacity_bits"], device,
-                                       cfg.get("perturbation_bound", 0.1))
+    enc, dec, is_hybrid = build_models(
+        cfg["mode"], cfg["capacity_bits"], device, cfg.get("perturbation_bound", 0.1),
+        arch=cfg.get("arch", "grid"), mask_aware=cfg.get("mask_aware", False),
+        qr_version=cfg["qr_version"], use_calibration=cfg.get("use_calibration", True))
     dec.load_state_dict(ckpt["decoder_state"]); dec.eval()
     return dec, is_hybrid, cfg
 
@@ -87,41 +89,66 @@ def main():
     module_count = 4 * manifest["qr_version"] + 17
     sym = module_count * manifest["module_size"]  # bare-symbol pixel size
 
+    from pyzbar.pyzbar import decode as zbar
+    from PIL import ImageOps
     by_text = {it["public_text"]: it for it in manifest["items"]}
 
-    n_loc = n_pub = n_msg = total = 0
-    for it in manifest["items"]:
-        total += 1
-        if args.self_test:
-            # build the exported (quiet-zoned, upscaled) image, then synth a photo
-            arr = np.asarray(Image.open(Path(args.exports) / it["file"]).convert("RGB"))
-            photo_rgb = synth_photo(arr.astype(np.float32) / 255.0)
-            bgr = cv2.cvtColor((photo_rgb * 255).astype(np.uint8), cv2.COLOR_RGB2BGR)
-        else:
-            fp = Path(args.photos) / it["file"]
-            if not fp.exists():
-                # allow arbitrary photo names; skip if absent
-                continue
-            bgr = cv2.imread(str(fp))
-
+    def score_bgr(bgr, item):
+        """Rectify + decode one image against a known manifest item; returns flags."""
         rgb = locate_and_rectify(bgr, sym)
         if rgb is None:
-            continue
-        n_loc += 1
-        # public decode (pyzbar) on the rectified symbol
-        from pyzbar.pyzbar import decode as zbar
+            return False, False, False
         zres = zbar(Image.fromarray((rgb * 255).astype(np.uint8)))
-        if zres and zres[0].data.decode("utf-8", "replace") == it["public_text"]:
-            n_pub += 1
-        # hidden decode
+        pub_ok = bool(zres) and zres[0].data.decode("utf-8", "replace") == item["public_text"]
         t = torch.from_numpy(rgb).permute(2, 0, 1).unsqueeze(0).float().to(device)
         with torch.no_grad():
             logits = (dec(t)[0] if is_hybrid else dec(t)).cpu().numpy()[0]
-        dec_msg = ecc.decode(logits[:clen])
-        if np.array_equal(dec_msg, np.array(it["message_bits"], dtype=np.uint8)):
-            n_msg += 1
+        msg_ok = np.array_equal(ecc.decode(logits[:clen]),
+                                np.array(item["message_bits"], dtype=np.uint8))
+        return True, pub_ok, msg_ok
 
-    print(f"items: {total}")
+    n_loc = n_pub = n_msg = total = 0
+
+    if args.self_test:
+        for it in manifest["items"]:
+            total += 1
+            arr = np.asarray(Image.open(Path(args.exports) / it["file"]).convert("RGB"))
+            photo_rgb = synth_photo(arr.astype(np.float32) / 255.0)
+            bgr = cv2.cvtColor((photo_rgb * 255).astype(np.uint8), cv2.COLOR_RGB2BGR)
+            loc, pub, msg = score_bgr(bgr, it)
+            n_loc += loc; n_pub += pub; n_msg += msg
+    else:
+        # Arbitrary phone-photo filenames: read each, EXIF-rotate, find its QR, match to
+        # the manifest by the scanned PUBLIC text, then score the hidden message.
+        exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+        photos = sorted(p for p in Path(args.photos).iterdir() if p.suffix.lower() in exts)
+        print(f"found {len(photos)} photos in {args.photos}")
+        for fp in photos:
+            total += 1
+            try:
+                pil = ImageOps.exif_transpose(Image.open(fp).convert("RGB"))
+            except Exception:
+                print(f"  {fp.name}: unreadable"); continue
+            bgr = cv2.cvtColor(np.asarray(pil), cv2.COLOR_RGB2BGR)
+            rect = locate_and_rectify(bgr, sym)
+            if rect is None:
+                print(f"  {fp.name}: no QR located"); continue
+            n_loc += 1
+            zres = zbar(Image.fromarray((rect * 255).astype(np.uint8)))
+            pub_text = zres[0].data.decode("utf-8", "replace") if zres else None
+            item = by_text.get(pub_text)
+            if item is None:
+                print(f"  {fp.name}: public={pub_text!r} (no manifest match)"); continue
+            n_pub += 1
+            t = torch.from_numpy(rect).permute(2, 0, 1).unsqueeze(0).float().to(device)
+            with torch.no_grad():
+                logits = (dec(t)[0] if is_hybrid else dec(t)).cpu().numpy()[0]
+            msg_ok = np.array_equal(ecc.decode(logits[:clen]),
+                                    np.array(item["message_bits"], dtype=np.uint8))
+            n_msg += msg_ok
+            print(f"  {fp.name}: public={pub_text!r}  hidden={'OK' if msg_ok else 'FAIL'}")
+
+    print(f"\n=== {total} images ===")
     print(f"QR located            : {n_loc}/{total}")
     print(f"public decode (pyzbar): {n_pub}/{total}")
     print(f"hidden MESSAGE decode : {n_msg}/{total}")

@@ -1,0 +1,13 @@
+{
+  "experiment": "EXP-002 physical screen-to-phone capture",
+  "date": "2026-06-15",
+  "model": "models/pretrained/stegaqr_default.pt (hybrid, distortion-trained, mask-aware, no-calibration)",
+  "ecc": "rep3",
+  "capture": "stego QR displayed on monitor, photographed with Google Pixel (PXL_*.jpg), 10 distinct codes",
+  "pipeline": "OpenCV detect+perspective-rectify -> pyzbar (public) + neural decoder+ECC (hidden)",
+  "n": 10,
+  "qr_located": 10,
+  "public_decode": 10,
+  "hidden_message_decode": 10,
+  "notes": "100% recovery through a real display->camera channel (perspective, glare, moire, JPEG, screen colour response). Raw photos in stegaqrtest/, per-photo log in decode_log.txt."
+}

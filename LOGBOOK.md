@@ -195,3 +195,46 @@ matching cross_channel and segregated, with the public QR 100% decodable. ECC re
 and Hamming(7,4) give 100% message decode.
 
 ---
+
+## EXP-002: Physical screen-to-phone robustness (real capture)
+
+**Date:** 2026-06-15
+**Researcher:** Muntaser Syed
+**Type:** physical / empirical
+**Status:** completed
+
+### Hypothesis
+A StegaQR stego image trained only against the *simulated* differentiable distortion
+layer will still yield correct hidden-message recovery when displayed on a screen and
+photographed by a phone — i.e. the learned robustness transfers to a real
+display->camera channel (the gap that limited prior work).
+
+### Protocol
+- Model: `models/pretrained/stegaqr_default.pt` (hybrid, distortion-trained, mask-aware,
+  no calibration), ECC = rep3 (4 hidden bytes). 10 stego QR codes with distinct public
+  payloads + random hidden messages exported via `scripts/export_for_capture.py`
+  (upscale 12, quiet zone 4); ground truth in `capture/screen1/manifest.json`.
+- Capture: each code displayed on a monitor and photographed with a Google Pixel
+  (`capture/screen1/stegaqrtest/PXL_*.jpg`), free-hand, mixed angle/distance.
+- Decode: `scripts/decode_from_photo.py` — OpenCV detect + perspective-rectify ->
+  pyzbar (public) and neural decoder + ECC (hidden); each photo matched to its code by
+  the scanned public text.
+
+### Results (n=10)
+| metric | result |
+|--------|--------|
+| QR located            | 10/10 |
+| public decode (pyzbar)| 10/10 |
+| hidden MESSAGE decode | **10/10** |
+
+Per-photo log: `capture/screen1/decode_log.txt`; summary: `capture/screen1/capture_results.json`.
+
+### Interpretation
+**The simulated-distortion training transfers to reality.** 100% hidden-message
+recovery through a genuine display->camera pipeline (perspective, glare, moiré, JPEG,
+screen colour response) — and the public QR remained 100% standard-scannable. This
+directly addresses the real-world weakness of the prior ICMLA multispecqr decoder.
+Next: a degradation sweep (steeper angles / low light / distance) to locate the
+failure boundary, and the same at higher capacity.
+
+---

@@ -40,6 +40,14 @@ A classical LSB baseline is perfect when clean (100%, 78 dB) but is destroyed by
 distortion (53.8% bit accuracy, 3.9% full-decode) — the learned codec's robustness is
 the difference.
 
+### F7 — Robustness transfers to real photographs (screen -> phone)
+Training uses only a *simulated* differentiable distortion layer, yet the learned
+robustness transfers to physical capture: 10 stego QR codes displayed on a monitor and
+photographed with a phone decoded at **10/10 hidden-message recovery** and 10/10 public
+decode, through real perspective, glare, moiré, JPEG and screen colour response
+(EXP-002). This is the key real-world validation — it addresses the exact weakness
+(real capture vs clean training) that limited the prior ICMLA work.
+
 ### F6 — Hybrid (QR-anchored) mode, stabilized
 The hybrid mode preserves the QR structure exactly (perturbation masked off finder/
 timing/format modules) and was initially the weakest (collapse + ~94% accuracy cap).

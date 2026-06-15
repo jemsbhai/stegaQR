@@ -8,62 +8,62 @@
     "use_distortion_train": false,
     "lambda_perceptual": 4.0,
     "checkpoint": "E:\\data\\code\\claudecode\\mQRstego\\experiments\\full\\main_hybrid_clean_s99\\best_model.pt",
-    "epoch": 13
+    "epoch": 12
   },
   "clean": {
-    "bit_acc": 0.50625,
-    "full_decode": 0.0,
+    "bit_acc": 1.0,
+    "full_decode": 1.0,
     "full_decode_ci": [
-      0.0,
-      0.029136956273508416
+      0.9708630437264916,
+      1.0
     ],
-    "psnr": Infinity,
-    "ssim": 1.000000011175871,
+    "psnr": 50.3905005823788,
+    "ssim": 0.9999815826304257,
     "public_decode": 1.0
   },
   "distorted": {
-    "bit_acc": 0.50625,
+    "bit_acc": 0.6996875,
     "full_decode": 0.0,
     "full_decode_ci": [
       0.0,
       0.029136956273508416
     ],
-    "psnr": Infinity,
-    "ssim": 1.000000011175871,
+    "psnr": 50.3905005823788,
+    "ssim": 0.9999815826304257,
     "public_decode": 1.0
   },
   "ecc": {
     "rep3": {
       "net_bits": 33,
       "rate": 0.3333333333333333,
-      "msg_bit_acc": 0.49976325757575757,
-      "msg_decode": 0.0,
+      "msg_bit_acc": 0.7362689393939394,
+      "msg_decode": 0.25,
       "msg_decode_ci": [
-        0.0,
-        0.029136956273508416
+        0.18301284861358558,
+        0.33155562952316864
       ]
     },
     "rep5": {
       "net_bits": 20,
       "rate": 0.2,
-      "msg_bit_acc": 0.51640625,
-      "msg_decode": 0.0,
+      "msg_bit_acc": 0.754296875,
+      "msg_decode": 0.109375,
       "msg_decode_ci": [
-        0.0,
-        0.029136956273508416
+        0.06627879570700111,
+        0.17523445138167731
       ]
     },
     "hamming74": {
       "net_bits": 56,
       "rate": 0.5714285714285714,
-      "msg_bit_acc": 0.5099051339285714,
-      "msg_decode": 0.0,
+      "msg_bit_acc": 0.6895926339285714,
+      "msg_decode": 0.25,
       "msg_decode_ci": [
-        0.0,
-        0.029136956273508416
+        0.18301284861358558,
+        0.33155562952316864
       ]
     }
   },
   "tag": "main_hybrid_clean_s99",
-  "train_seconds": 403.2
+  "train_seconds": 399.6
 }

@@ -8,28 +8,28 @@
     "use_distortion_train": true,
     "lambda_perceptual": 4.0,
     "checkpoint": "E:\\data\\code\\claudecode\\mQRstego\\experiments\\full\\main_hybrid_distort_s7\\best_model.pt",
-    "epoch": 16
+    "epoch": 7
   },
   "clean": {
-    "bit_acc": 0.93953125,
-    "full_decode": 0.0,
+    "bit_acc": 1.0,
+    "full_decode": 1.0,
     "full_decode_ci": [
-      0.0,
-      0.029136956273508416
+      0.9708630437264916,
+      1.0
     ],
-    "psnr": 33.29158115355809,
-    "ssim": 0.9990398581139743,
+    "psnr": 24.166116371991933,
+    "ssim": 0.9921172857284546,
     "public_decode": 1.0
   },
   "distorted": {
-    "bit_acc": 0.939609375,
-    "full_decode": 0.0,
+    "bit_acc": 1.0,
+    "full_decode": 1.0,
     "full_decode_ci": [
-      0.0,
-      0.029136956273508416
+      0.9708630437264916,
+      1.0
     ],
-    "psnr": 33.29158115355809,
-    "ssim": 0.9990398581139743,
+    "psnr": 24.166116371991933,
+    "ssim": 0.9921172857284546,
     "public_decode": 1.0
   },
   "ecc": {
@@ -46,24 +46,24 @@
     "rep5": {
       "net_bits": 20,
       "rate": 0.2,
-      "msg_bit_acc": 0.9984375,
-      "msg_decode": 0.984375,
+      "msg_bit_acc": 1.0,
+      "msg_decode": 1.0,
       "msg_decode_ci": [
-        0.9448190233201829,
-        0.9957045502898559
+        0.9708630437264916,
+        1.0
       ]
     },
     "hamming74": {
       "net_bits": 56,
       "rate": 0.5714285714285714,
-      "msg_bit_acc": 0.9504743303571429,
-      "msg_decode": 0.1171875,
+      "msg_bit_acc": 1.0,
+      "msg_decode": 1.0,
       "msg_decode_ci": [
-        0.07231682349355734,
-        0.18436615865334754
+        0.9708630437264916,
+        1.0
       ]
     }
   },
   "tag": "main_hybrid_distort_s7",
-  "train_seconds": 432.0
+  "train_seconds": 425.5
 }

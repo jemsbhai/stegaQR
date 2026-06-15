@@ -138,10 +138,12 @@ PSNR tie-break) under stochastic distortion. 5 seeds {42,123,7,99,2024}.
 | cross_channel | distortion | 99.8 | **99.2 +/-1.5** | 19.0 | 0.97 | 100 |
 | segregated    | clean      | 100.0 | 13.9 +/-11.3 | 63.5 | 1.00 | 100 |
 | segregated    | distortion | 99.8 | **99.1 +/-0.8** | 17.6 | 0.96 | 100 |
-| hybrid        | clean      | 0.0 | 0.0 | (collapsed) | 1.00 | 100 |
-| hybrid        | distortion | 0.0 | 0.0 | (collapsed) | 1.00 | 100 |
+| hybrid        | clean      | 99.8 | 13.9 +/-11.3 | 58.8 | 1.00 | 100 |
+| hybrid        | distortion | 100.0 | **100.0 +/-0.0** | 22.3 | 0.99 | 100 |
 
-(FDR = full-decode rate, all 100 bits correct. Values without CI are ~0 variance.)
+(FDR = full-decode rate, all 100 bits correct. Values without CI are ~0 variance.
+Hybrid uses the stabilized config: mask-aware grid + no calibration branch, see
+addendum 2 below / DIAGNOSTICS D9.)
 
 ### Studies
 - **ECC** (distortion cross_channel, under distortion): Hamming(7,4) **100%** message
@@ -168,11 +170,28 @@ PSNR tie-break) under stochastic distortion. 5 seeds {42,123,7,99,2024}.
   steganography does not break the cover.
 - **cross_channel and segregated are equivalent** (~99% robust FDR); segregated adds
   per-channel fault isolation at no measured cost.
-- **Hybrid is the open problem.** With the hard finder-mask + adaptive perceptual
-  ramp it is unstable (collapses to ~0 perturbation on several seeds; raw accuracy is
-  also capped ~94% because finder-pattern cells cannot carry bits). The mask-aware
-  hybrid variant + a gentler perceptual schedule are the fix under evaluation.
+- **Hybrid is now stable and matches the other modes** (addendum 2 / DIAGNOSTICS D9):
+  with the mask-aware grid + no calibration branch, distortion-trained hybrid reaches
+  **100% +/- 0.0 distorted full-decode** (n=5) at 22.3 dB / SSIM 0.99 — slightly higher
+  PSNR than cross_channel/segregated thanks to the structural mask. The QR-anchored
+  mode thus gives guaranteed structural preservation AND full robust decoding.
 - ECC removes the residual full-message brittleness: 100% message recovery with
   Hamming(7,4) at the distortion-trained operating point.
+
+---
+
+## EXP-001 — Addendum 2 (2026-06-15): hybrid stabilization
+
+The first matrix exposed hybrid as unstable (collapse to ~0 perturbation; raw
+accuracy capped ~94%). Diagnosed (DIAGNOSTICS D9) to two causes: (i) the uniform
+grid placed bits on finder-pattern cells the mask cannot perturb; (ii) the
+calibration network's random init applied a random affine colour transform before
+decoding, giving a stochastic chance-saddle cold-start that the perceptual ramp then
+collapsed. Fix: **mask-aware grid + no calibration branch** (the conv decoder handles
+photometric distortion implicitly, as cross_channel does). The hybrid rows in the
+table above were re-run (5 seeds) with this stabilized config: distortion-trained
+hybrid now reaches **100% +/- 0.0 distorted full-decode** at 22.3 dB / SSIM 0.99,
+matching cross_channel and segregated, with the public QR 100% decodable. ECC rep3
+and Hamming(7,4) give 100% message decode.
 
 ---

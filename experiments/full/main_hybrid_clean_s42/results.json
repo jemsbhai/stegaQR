@@ -8,62 +8,62 @@
     "use_distortion_train": false,
     "lambda_perceptual": 4.0,
     "checkpoint": "E:\\data\\code\\claudecode\\mQRstego\\experiments\\full\\main_hybrid_clean_s42\\best_model.pt",
-    "epoch": 18
+    "epoch": 15
   },
   "clean": {
-    "bit_acc": 0.9509375,
-    "full_decode": 0.0,
+    "bit_acc": 1.0,
+    "full_decode": 1.0,
     "full_decode_ci": [
-      0.0,
-      0.029136956273508416
+      0.9708630437264916,
+      1.0
     ],
-    "psnr": 68.20119214295491,
-    "ssim": 0.999999659601599,
+    "psnr": 60.42530710063515,
+    "ssim": 0.9999981885775924,
     "public_decode": 1.0
   },
   "distorted": {
-    "bit_acc": 0.52546875,
+    "bit_acc": 0.53609375,
     "full_decode": 0.0,
     "full_decode_ci": [
       0.0,
       0.029136956273508416
     ],
-    "psnr": 68.20119214295491,
-    "ssim": 0.999999659601599,
+    "psnr": 60.42530710063515,
+    "ssim": 0.9999981885775924,
     "public_decode": 1.0
   },
   "ecc": {
     "rep3": {
       "net_bits": 33,
       "rate": 0.3333333333333333,
-      "msg_bit_acc": 0.5049715909090909,
+      "msg_bit_acc": 0.7523674242424242,
+      "msg_decode": 0.2578125,
+      "msg_decode_ci": [
+        0.18986902089941152,
+        0.3398691922955691
+      ]
+    },
+    "rep5": {
+      "net_bits": 20,
+      "rate": 0.2,
+      "msg_bit_acc": 0.51640625,
       "msg_decode": 0.0,
       "msg_decode_ci": [
         0.0,
         0.029136956273508416
       ]
     },
-    "rep5": {
-      "net_bits": 20,
-      "rate": 0.2,
-      "msg_bit_acc": 0.634765625,
-      "msg_decode": 0.25,
-      "msg_decode_ci": [
-        0.18301284861358558,
-        0.33155562952316864
-      ]
-    },
     "hamming74": {
       "net_bits": 56,
       "rate": 0.5714285714285714,
-      "msg_bit_acc": 0.7321428571428571,
-      "msg_decode": 0.0859375,
+      "msg_bit_acc": 0.7666015625,
+      "msg_decode": 0.5,
       "msg_decode_ci": [
-        0.04866313137138619,
-        0.14734091054261295
+        0.41465224626050723,
+        0.5853477537394928
       ]
     }
   },
   "tag": "main_hybrid_clean_s42",
-  "train_seconds": 408.1
+  "train_seconds": 399.8
 }

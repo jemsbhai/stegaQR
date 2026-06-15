@@ -8,55 +8,55 @@
     "use_distortion_train": false,
     "lambda_perceptual": 4.0,
     "checkpoint": "E:\\data\\code\\claudecode\\mQRstego\\experiments\\full\\main_hybrid_clean_s123\\best_model.pt",
-    "epoch": 17
+    "epoch": 16
   },
   "clean": {
-    "bit_acc": 0.943359375,
-    "full_decode": 0.0,
+    "bit_acc": 1.0,
+    "full_decode": 1.0,
     "full_decode_ci": [
-      0.0,
-      0.029136956273508416
+      0.9708630437264916,
+      1.0
     ],
-    "psnr": 69.2627636493682,
-    "ssim": 0.9999997611157596,
+    "psnr": 64.88934090897587,
+    "ssim": 0.9999993373639882,
     "public_decode": 1.0
   },
   "distorted": {
-    "bit_acc": 0.645390625,
-    "full_decode": 0.0,
+    "bit_acc": 0.640078125,
+    "full_decode": 0.25,
     "full_decode_ci": [
-      0.0,
-      0.029136956273508416
+      0.18301284861358558,
+      0.33155562952316864
     ],
-    "psnr": 69.2627636493682,
-    "ssim": 0.9999997611157596,
+    "psnr": 64.88934090897587,
+    "ssim": 0.9999993373639882,
     "public_decode": 1.0
   },
   "ecc": {
     "rep3": {
       "net_bits": 33,
       "rate": 0.3333333333333333,
-      "msg_bit_acc": 0.5075757575757576,
-      "msg_decode": 0.0,
+      "msg_bit_acc": 0.6683238636363636,
+      "msg_decode": 0.25,
       "msg_decode_ci": [
-        0.0,
-        0.029136956273508416
+        0.18301284861358558,
+        0.33155562952316864
       ]
     },
     "rep5": {
       "net_bits": 20,
       "rate": 0.2,
-      "msg_bit_acc": 0.5125,
-      "msg_decode": 0.0,
+      "msg_bit_acc": 0.610546875,
+      "msg_decode": 0.09375,
       "msg_decode_ci": [
-        0.0,
-        0.029136956273508416
+        0.054443804399147026,
+        0.15672997257307855
       ]
     },
     "hamming74": {
       "net_bits": 56,
       "rate": 0.5714285714285714,
-      "msg_bit_acc": 0.5591517857142857,
+      "msg_bit_acc": 0.5174386160714286,
       "msg_decode": 0.0,
       "msg_decode_ci": [
         0.0,
@@ -65,5 +65,5 @@
     }
   },
   "tag": "main_hybrid_clean_s123",
-  "train_seconds": 404.2
+  "train_seconds": 401.9
 }

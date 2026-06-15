@@ -40,12 +40,16 @@ A classical LSB baseline is perfect when clean (100%, 78 dB) but is destroyed by
 distortion (53.8% bit accuracy, 3.9% full-decode) — the learned codec's robustness is
 the difference.
 
-### Open item — hybrid mode
-The QR-anchored hybrid mode (hard finder/timing mask + self-calibration) is the
-intended deployment mode but is currently the weakest: the mask prevents finder-pattern
-cells from carrying bits (raw accuracy capped ~94%) and the adaptive perceptual schedule
-destabilises it (perturbation collapse on several seeds). A mask-aware bit layout (bits
-placed only on data-rich cells) and a gentler perceptual schedule are under evaluation.
+### F6 — Hybrid (QR-anchored) mode, stabilized
+The hybrid mode preserves the QR structure exactly (perturbation masked off finder/
+timing/format modules) and was initially the weakest (collapse + ~94% accuracy cap).
+Two fixes resolve it (DIAGNOSTICS D9): a **mask-aware bit layout** (bits on data-rich
+cells, never finder cells) and **removing the calibration branch** (its random init
+gave a stochastic chance-saddle cold-start; the convolutional decoder handles
+photometric distortion implicitly). Stabilized hybrid matches the other modes:
+distortion-trained **100% ± 0.0 distorted full-decode** (n=5), 22.3 dB / SSIM 0.99,
+public QR 100% decodable, ECC → 100% message. The QR-anchored mode thus delivers
+guaranteed structural preservation *and* full robust decoding.
 
 ---
 

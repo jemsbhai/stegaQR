@@ -8,62 +8,62 @@
     "use_distortion_train": false,
     "lambda_perceptual": 4.0,
     "checkpoint": "E:\\data\\code\\claudecode\\mQRstego\\experiments\\full\\main_hybrid_clean_s7\\best_model.pt",
-    "epoch": 11
+    "epoch": 15
   },
   "clean": {
-    "bit_acc": 0.5,
-    "full_decode": 0.0,
+    "bit_acc": 0.999921875,
+    "full_decode": 0.9921875,
     "full_decode_ci": [
-      0.0,
-      0.029136956273508416
+      0.9570737405611394,
+      0.9986195681071257
     ],
-    "psnr": Infinity,
-    "ssim": 1.0000000009313226,
+    "psnr": 55.8170211124192,
+    "ssim": 0.9999947384931147,
     "public_decode": 1.0
   },
   "distorted": {
-    "bit_acc": 0.5,
-    "full_decode": 0.0,
+    "bit_acc": 0.7528125,
+    "full_decode": 0.1953125,
     "full_decode_ci": [
-      0.0,
-      0.029136956273508416
+      0.1359396128283779,
+      0.2724407199007913
     ],
-    "psnr": Infinity,
-    "ssim": 1.0000000009313226,
+    "psnr": 55.8170211124192,
+    "ssim": 0.9999947384931147,
     "public_decode": 1.0
   },
   "ecc": {
     "rep3": {
       "net_bits": 33,
       "rate": 0.3333333333333333,
-      "msg_bit_acc": 0.5,
-      "msg_decode": 0.0,
+      "msg_bit_acc": 0.6600378787878788,
+      "msg_decode": 0.0859375,
       "msg_decode_ci": [
-        0.0,
-        0.029136956273508416
+        0.04866313137138619,
+        0.14734091054261295
       ]
     },
     "rep5": {
       "net_bits": 20,
       "rate": 0.2,
-      "msg_bit_acc": 0.502734375,
-      "msg_decode": 0.0,
+      "msg_bit_acc": 0.681640625,
+      "msg_decode": 0.25,
       "msg_decode_ci": [
-        0.0,
-        0.029136956273508416
+        0.18301284861358558,
+        0.33155562952316864
       ]
     },
     "hamming74": {
       "net_bits": 56,
       "rate": 0.5714285714285714,
-      "msg_bit_acc": 0.5128348214285714,
-      "msg_decode": 0.0,
+      "msg_bit_acc": 0.7183314732142857,
+      "msg_decode": 0.25,
       "msg_decode_ci": [
-        0.0,
-        0.029136956273508416
+        0.18301284861358558,
+        0.33155562952316864
       ]
     }
   },
   "tag": "main_hybrid_clean_s7",
-  "train_seconds": 401.8
+  "train_seconds": 400.9
 }

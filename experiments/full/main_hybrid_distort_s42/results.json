@@ -8,62 +8,62 @@
     "use_distortion_train": true,
     "lambda_perceptual": 4.0,
     "checkpoint": "E:\\data\\code\\claudecode\\mQRstego\\experiments\\full\\main_hybrid_distort_s42\\best_model.pt",
-    "epoch": 16
+    "epoch": 6
   },
   "clean": {
-    "bit_acc": 0.9403125,
-    "full_decode": 0.0,
+    "bit_acc": 1.0,
+    "full_decode": 1.0,
     "full_decode_ci": [
-      0.0,
-      0.029136956273508416
+      0.9708630437264916,
+      1.0
     ],
-    "psnr": 33.489697355076984,
-    "ssim": 0.9990823678672314,
+    "psnr": 20.44623692017154,
+    "ssim": 0.9803784228861332,
     "public_decode": 1.0
   },
   "distorted": {
-    "bit_acc": 0.921953125,
-    "full_decode": 0.0,
+    "bit_acc": 1.0,
+    "full_decode": 1.0,
     "full_decode_ci": [
-      0.0,
-      0.029136956273508416
+      0.9708630437264916,
+      1.0
     ],
-    "psnr": 33.489697355076984,
-    "ssim": 0.9990823678672314,
+    "psnr": 20.44623692017154,
+    "ssim": 0.9803784228861332,
     "public_decode": 1.0
   },
   "ecc": {
     "rep3": {
       "net_bits": 33,
       "rate": 0.3333333333333333,
-      "msg_bit_acc": 0.9997632575757576,
-      "msg_decode": 0.9921875,
+      "msg_bit_acc": 1.0,
+      "msg_decode": 1.0,
       "msg_decode_ci": [
-        0.9570737405611394,
-        0.9986195681071257
+        0.9708630437264916,
+        1.0
       ]
     },
     "rep5": {
       "net_bits": 20,
       "rate": 0.2,
-      "msg_bit_acc": 0.98828125,
-      "msg_decode": 0.84375,
+      "msg_bit_acc": 1.0,
+      "msg_decode": 1.0,
       "msg_decode_ci": [
-        0.7709518905710295,
-        0.8965164519909334
+        0.9708630437264916,
+        1.0
       ]
     },
     "hamming74": {
       "net_bits": 56,
       "rate": 0.5714285714285714,
-      "msg_bit_acc": 0.9462890625,
-      "msg_decode": 0.0859375,
+      "msg_bit_acc": 1.0,
+      "msg_decode": 1.0,
       "msg_decode_ci": [
-        0.04866313137138619,
-        0.14734091054261295
+        0.9708630437264916,
+        1.0
       ]
     }
   },
   "tag": "main_hybrid_distort_s42",
-  "train_seconds": 430.7
+  "train_seconds": 422.9
 }

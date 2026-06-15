@@ -1,0 +1,149 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+% IEEE ICTAI 2026 submission. Compile on Overleaf with bibtex (IEEEtran style).
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{figures/}}
+
+\begin{document}
+
+\title{StegaQR: Robust Neural Data Embedding in QR Codes\\ with Switchable Channel Modes}
+
+% ICTAI is single-blind; fill author block before camera-ready.
+\author{\IEEEauthorblockN{Anonymous Author(s)}
+\IEEEauthorblockA{Affiliation \\ City, Country \\ email@domain}}
+
+\maketitle
+
+\begin{abstract}
+Quick Response (QR) codes are ubiquitous machine-readable carriers, yet the data
+they expose is entirely public. We present StegaQR, a neural method that embeds an
+additional private bitstring inside a standard-looking QR code through learned color
+perturbations, so that any conventional reader still recovers the public payload
+while only a trained decoder recovers the private one. The core of the method is a
+spatial bit-grid payload layout, in which each private bit is assigned to one cell of
+a grid that is upsampled to the code resolution. We show that this layout is what
+makes the problem learnable at practical payload sizes, where the global
+message-broadcast injection used by prior neural data-hiding methods stalls near
+chance. StegaQR supports three switchable embedding modes (per-channel,
+cross-channel, and a QR-anchored hybrid that leaves the structural modules
+untouched) and couples the learned channel with error-correction coding. Training
+the encoder and decoder end to end through a differentiable distortion layer yields
+robustness that transfers to physical capture. Across five seeds, distortion-trained
+models recover the full private message with 99 to 100 percent success under
+simulated degradation, and recover it from every one of ten real photographs of a
+displayed code, while the public payload remains 100 percent standard-decodable. We
+characterize the operating frontier between imperceptibility and robustness and
+report a classical baseline that fails under the same conditions.
+\end{abstract}
+
+\begin{IEEEkeywords}
+QR codes, information hiding, data embedding, deep learning, robust watermarking,
+error-correction coding, screen-shooting robustness.
+\end{IEEEkeywords}
+
+\section{Introduction}
+A QR code carries a single public payload that any camera can read. This openness is
+what makes QR codes useful for ticketing, payments, and product labeling, but it also
+means the code cannot carry anything that should travel with the artifact and stay out
+of reach of an ordinary scanner. A second, private channel that rides inside the same
+printed or displayed code would support uses such as tamper evidence, device-pairing
+secrets, and provenance tags, provided two conditions hold. A standard reader must
+still decode the public payload, and the private channel must survive the way QR codes
+are actually consumed, which is by photographing them from paper or a screen.
+
+Two bodies of work come close, but each leaves a gap. Neural data-hiding methods learn
+an encoder and decoder jointly and can embed a bitstring that survives printing and
+re-photography~\cite{baluja2017hiding,zhu2018hidden,tancik2020stegastamp,bui2023rosteals}.
+They hide data inside natural photographs, however, so the recovered medium is the photo
+rather than a still-scannable code. Methods that hide data specifically inside QR codes
+do keep a public level readable, but they are classical: they substitute textured
+patterns or multiplex color channels by hand, and the high-capacity color variants need a
+dedicated decoder, so the composite code is no longer a standard
+QR~\cite{tkachenko2016twolevel,yang2018hiq,chu2013halftone}. None of the QR-specific
+methods is learned, and their robustness to the screen-to-camera channel is largely
+untested.
+
+We present StegaQR, which fills this gap. A convolutional encoder takes a standard QR
+code and a private bitstring and outputs a stego code that differs from the original
+only by a learned color perturbation. A convolutional decoder recovers the private bits
+from the stego code, while any conventional reader recovers the public payload unchanged.
+The encoder and decoder are trained end to end through a differentiable distortion layer
+that simulates the photometric and geometric corruptions of capture, which is the
+mechanism that gives the learned channel its robustness.
+
+The design choice that makes this work at useful payload sizes is how the private bits
+enter the network. Prior neural hiders broadcast the message as a constant signal over
+the whole image and read it back by global pooling. We instead lay the bits out
+spatially. Each bit occupies one cell of a grid that is upsampled to the code resolution,
+and the decoder pools its activation map back to the same grid to read each cell. Because
+a single shared convolution then learns one write-and-read operation that applies to
+every cell, learning a 100-bit code becomes about as hard as learning a handful of bits.
+Under an identical training budget, the spatial layout reaches 100 percent bit accuracy
+at 100 bits, while the broadcast layout stays near 52 percent, which is chance.
+
+StegaQR exposes three switchable embedding modes that trade fault isolation, capacity,
+and structural guarantees. A segregated mode uses independent per-channel sub-networks, a
+cross-channel mode uses all three color channels jointly, and a QR-anchored hybrid masks
+the perturbation off the finder, timing, and format modules so the structural anatomy of
+the code is provably unchanged. On top of the learned channel we apply error-correction
+coding, which turns the decoder's high but imperfect bit accuracy into exact message
+recovery. The need for distortion-aware training is concrete. Machine-learning decoders
+for printed or displayed 2D barcodes are brittle to real photometric and environmental
+variation, because a captured code depends heavily on the device and lighting, and a
+decoder trained for one setting often fails in another~\cite{xie2020lcac}. Training
+through the distortion layer removes this brittleness, and we confirm the result on real
+captures rather than on simulation alone.
+
+Because the embedding strength is a tunable knob, StegaQR spans an operating frontier. At
+high peak signal-to-noise ratio (PSNR) the perturbation is not visible to a human and the
+embedding is genuinely covert. At the lower PSNR needed to survive physical capture the
+perturbation appears as a faint color tint, so we describe that regime as robust data
+embedding rather than as human-imperceptible steganography. We characterize both ends and
+state the trade-off plainly.
+
+This paper makes the following contributions.
+\begin{itemize}
+\item A neural method that embeds an arbitrary private bitstring inside a
+standard-decodable QR code by learned color perturbation, distinct from hiding data in
+natural images and from classical QR data hiding.
+\item A spatial bit-grid payload layout, with an ablation showing it is the component
+that makes the problem learnable at 100 bits (100 percent versus 52 percent for global
+broadcast).
+\item Three switchable embedding modes, including a QR-anchored hybrid that leaves the
+structural modules untouched, compared across five seeds.
+\item A distortion-trained, error-correction-coded channel characterized along the
+imperceptibility, robustness, and capacity axes, with a classical baseline for reference.
+\item Validation on real screen-to-camera capture, where the private message is recovered
+from every test photograph while the public payload stays fully standard-decodable.
+\end{itemize}
+
+\section{Related Work}
+% TODO (next section)
+
+\section{Method}
+% TODO
+
+\section{Experimental Setup}
+% TODO
+
+\section{Results}
+% TODO
+
+\section{Discussion and Limitations}
+% TODO
+
+\section{Conclusion}
+% TODO
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\end{document}

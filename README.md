@@ -31,16 +31,55 @@ cd E:\data\code\claudecode\mQRstego
 pip install -e ".[dev,ml]"
 ```
 
-## Reproducing Results
+## Quick start (CLI)
 
-Every figure and number in the paper traces to a logged experiment in `LOGBOOK.md`.
+A trained checkpoint ships at `models/pretrained/stegaqr_default.pt` (hybrid mode,
+distortion-trained). The hidden payload is protected by error-correcting code, so
+capacity is small (a few bytes) — run `info` to see the exact limit.
 
 ```powershell
-# Run all experiments
-python scripts/run_experiment.py --config configs/base.yaml
+stegaqr info   --model models/pretrained/stegaqr_default.pt
+stegaqr encode --model models/pretrained/stegaqr_default.pt `
+               --public "https://example.com/p" --message "ID42" --out stego.png
+stegaqr decode --model models/pretrained/stegaqr_default.pt --image stego.png
+```
 
-# Generate paper figures
+`encode` writes a normal-looking QR: any reader scans `--public`; only StegaQR
+recovers `--message`. (Use `--device cpu` if you have no GPU.)
+
+## Library
+
+```python
+from stegaqr import encode_hidden, decode_hidden
+img = encode_hidden("https://example.com", b"ID42",
+                    model="models/pretrained/stegaqr_default.pt", ecc="rep3")
+public, hidden, meta = decode_hidden(img, model="models/pretrained/stegaqr_default.pt")
+```
+
+## Reproducing results
+
+Every figure and number traces to a logged run in `LOGBOOK.md` / `experiments/full/`.
+
+```powershell
+# Train one model (see scripts/train.py --help for modes, ECC-free vs adaptive, etc.)
+python scripts/train.py --mode hybrid --mask-aware --no-calibration --output-dir experiments/run1
+
+# Evaluate a checkpoint (clean + distortion + ECC message-decode)
+python scripts/evaluate.py --checkpoint experiments/run1/best_model.pt
+
+# Full experiment matrix (modes x clean/distortion x seeds, capacity sweep, baselines)
+python scripts/run_experiments.py            # resumable; --quick for a smoke test
+
+# Aggregate -> experiments/full/RESULTS.md, then figures -> figures/
+python scripts/aggregate_results.py
 python scripts/generate_figures.py
+```
+
+Physical print-scan robustness study:
+
+```powershell
+python scripts/export_for_capture.py --checkpoint <ckpt> --out capture/exp1   # print/display + photograph
+python scripts/decode_from_photo.py  --photos capture/exp1_photos --manifest capture/exp1/manifest.json
 ```
 
 ## Project Structure

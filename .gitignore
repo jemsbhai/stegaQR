@@ -37,6 +37,7 @@ experiments/*/logs/
 experiments/*/best_model.pt
 models/pretrained/*.pt
 models/pretrained/*.pth
+!models/pretrained/stegaqr_default.pt   # ship the default CLI model (~3MB)
 
 # Cygwin/MSYS crash dumps
 *.stackdump

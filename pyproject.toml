@@ -40,6 +40,9 @@ analysis = [
     "scikit-learn>=1.3",
 ]
 
+[project.scripts]
+stegaqr = "stegaqr.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

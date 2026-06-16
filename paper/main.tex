@@ -126,7 +126,60 @@ from every test photograph while the public payload stays fully standard-decodab
 \end{itemize}
 
 \section{Related Work}
-% TODO (next section)
+
+\subsection{Neural data hiding in images}
+Deep data hiding trains an encoder and a decoder as a pair. Baluja hid a full color
+image inside a same-size cover and recovered it with a companion
+network~\cite{baluja2017hiding}. HiDDeN moved to bitstring payloads and introduced the
+now-standard recipe of inserting a differentiable noise layer between encoder and
+decoder, so the system learns robustness to blur, cropping, and an approximation of
+JPEG~\cite{zhu2018hidden}. StegaStamp carried this to the physical world: it embeds a
+hyperlink bitstring into a natural photograph that stays decodable after the photo is
+printed and re-captured, using simulated printing and reimaging during training and a
+BCH code to clean up residual bit errors~\cite{tancik2020stegastamp}. RoSteALS placed
+the payload as a single offset in the latent space of a pretrained
+autoencoder~\cite{bui2023rosteals}, and RivaGAN added attention and adversarial critics
+for video~\cite{zhang2019rivagan}. Two properties separate all of these from our setting.
+The cover is a natural image, so the artifact that must stay useful is a photograph
+rather than a scannable code, and the payload is injected by broadcasting the message
+across the whole image and reading it back with global pooling, with no spatial
+correspondence between a bit and a location.
+
+\subsection{Data hiding inside QR codes}
+A separate line keeps the QR code itself as the carrier. The two-level QR code stores a
+public level identical to a standard QR, readable by any application, and a private level
+formed by replacing black modules with textured patterns that are recovered by pattern
+correlation and Reed-Solomon decoding~\cite{tkachenko2016twolevel}. High-capacity color
+QR codes such as HiQ superpose several monochrome codes into one color symbol, which
+raises capacity but needs a trained classifier to separate the channels, so the result is
+no longer a standard monochrome QR~\cite{yang2018hiq}. Halftone QR codes embed a visible
+image into the code by splitting each module into a three-by-three block and binding only
+the center submodule to the decoded value~\cite{chu2013halftone}. Anti-copying 2D barcodes
+embed authentication information in the print noise itself~\cite{xie2020lcac}. These
+methods preserve or extend QR functionality, but they are hand-designed rather than
+learned, and where capacity is highest the public readability is lost. Their behavior
+under the screen-to-camera channel is largely unreported.
+
+\subsection{Robustness to the physical channel}
+Robustness to printing and re-photography, and to the related screen-shooting channel in
+which a displayed image is captured by a camera, has become its own topic. Fang et al.
+characterized the screen-shooting channel through lens deformation, light-source
+deformation, and moire, and embedded the watermark redundantly at small scale to survive
+it~\cite{fang2019screen}. PIMoG showed that a noise layer modeling only the dominant
+distortions, namely perspective, illumination, and moire, is enough to train a deep
+watermarking network end to end and reach high screen-shooting
+accuracy~\cite{fang2022pimog}. We adopt the same principle of a differentiable distortion
+layer during training and apply it to a QR cover.
+
+\subsection{Positioning}
+StegaQR sits at an intersection that none of these occupy. It is a learned encoder and
+decoder, like the neural image hiders, but its cover is a QR code that remains
+standard-decodable, like the classical QR methods. It lays the payload out spatially
+rather than broadcasting it, exposes switchable embedding modes including one that
+provably preserves the structural modules, and is validated on real screen-to-camera
+capture. The closest neighbors are StegaStamp, which is neural and physical but hides in
+natural images with a broadcast payload, and the two-level QR code, which keeps the public
+payload but is classical and untested on the capture channel we target.
 
 \section{Method}
 % TODO

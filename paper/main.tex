@@ -29,10 +29,9 @@ additional private bitstring inside a standard-looking QR code through learned c
 perturbations, so that any conventional reader still recovers the public payload
 while only a trained decoder recovers the private one. The core of the method is a
 spatial bit-grid payload layout, in which each private bit is assigned to one cell of
-a grid that is upsampled to the code resolution. We show that this layout is what
-makes the problem learnable at practical payload sizes, where the global
-message-broadcast injection used by prior neural data-hiding methods stalls near
-chance. StegaQR supports three switchable embedding modes (per-channel,
+a grid that is upsampled to the code resolution. We show that this layout makes the
+problem learnable at practical payload sizes; the global message-broadcast injection
+used by prior neural data-hiding methods stalls near chance. StegaQR supports three switchable embedding modes (per-channel,
 cross-channel, and a QR-anchored hybrid that leaves the structural modules
 untouched) and couples the learned channel with error-correction coding. Training
 the encoder and decoder end to end through a differentiable distortion layer yields
@@ -50,10 +49,10 @@ error-correction coding, screen-shooting robustness.
 \end{IEEEkeywords}
 
 \section{Introduction}
-A QR code carries a single public payload that any camera can read. This openness is
-what makes QR codes useful for ticketing, payments, and product labeling, but it also
-means the code cannot carry anything that should travel with the artifact and stay out
-of reach of an ordinary scanner. A second, private channel that rides inside the same
+A QR code carries a single public payload that any camera can read. That openness
+drives its use in ticketing, payments, and product labeling, but it also means the
+code cannot carry anything that should travel with the artifact and stay out of reach
+of an ordinary scanner. A second, private channel that rides inside the same
 printed or displayed code would support uses such as tamper evidence, device-pairing
 secrets, and provenance tags, provided two conditions hold. A standard reader must
 still decode the public payload, and the private channel must survive the way QR codes
@@ -71,13 +70,13 @@ QR~\cite{tkachenko2016twolevel,yang2018hiq,chu2013halftone}. None of the QR-spec
 methods is learned, and their robustness to the screen-to-camera channel is largely
 untested.
 
-We present StegaQR, which fills this gap. A convolutional encoder takes a standard QR
-code and a private bitstring and outputs a stego code that differs from the original
-only by a learned color perturbation. A convolutional decoder recovers the private bits
-from the stego code, while any conventional reader recovers the public payload unchanged.
-The encoder and decoder are trained end to end through a differentiable distortion layer
-that simulates the photometric and geometric corruptions of capture, which is the
-mechanism that gives the learned channel its robustness.
+We present StegaQR, a method that bridges these two lines. A convolutional encoder takes
+a standard QR code and a private bitstring and outputs a stego code that differs from the
+original only by a learned color perturbation. A convolutional decoder recovers the
+private bits from the stego code, while any conventional reader recovers the public
+payload unchanged. The encoder and decoder are trained end to end through a differentiable
+distortion layer that simulates the photometric and geometric corruptions of capture. This
+training is the source of the learned channel's robustness.
 
 The design choice that makes this work at useful payload sizes is how the private bits
 enter the network. Prior neural hiders broadcast the message as a constant signal over
@@ -219,7 +218,7 @@ block of pixels at a fixed location.
 
 \subsection{Spatial bit-grid}
 \label{ssec:bitgrid}
-The bit map is what makes the problem learnable. A convolution is translation equivariant
+The bit map is the reason the task becomes learnable. A convolution is translation equivariant
 with shared weights, so a network that learns to write one cell has learned to write every
 cell, and likewise for reading. Embedding $L$ bits is then about as hard as embedding a
 few. This is the point of departure from the global broadcast used by prior neural
@@ -300,8 +299,8 @@ omits it; the convolutional decoder already absorbs photometric variation.
 \textbf{Distortion layer.} A differentiable distortion layer sits between the encoder and
 decoder during training and applies, each with a fixed probability, additive Gaussian
 noise, a JPEG-like quantization proxy, brightness scaling, per-channel color shift, and
-Gaussian blur. The decoder therefore learns to read bits from degraded stego images, which
-is what transfers to physical capture.
+Gaussian blur. The decoder therefore learns to read bits from degraded stego images, and
+that ability carries over to physical capture.
 
 \textbf{Objective.} The loss combines a decoding term, an imperceptibility term, and a
 structural term:
@@ -361,8 +360,8 @@ percent confidence interval over the five seeds.
 \subsection{Channel modes and the effect of distortion training}
 Table~\ref{tab:modes} reports the three modes under both training regimes. Two patterns
 are consistent across seeds. First, the public payload is decoded by a standard reader in
-every condition, so the embedding never breaks the cover. Second, distortion training is
-what produces robustness. Clean-trained models are near perfect on clean stego images but
+every condition, so the embedding never breaks the cover. Second, distortion training
+produces the robustness. Clean-trained models are near perfect on clean stego images but
 recover the full message from only about 10 to 14 percent of distorted images, whereas
 distortion-trained models recover it from 99 to 100 percent. Cross-channel and segregated
 behave almost identically; the hybrid mode matches them at a slightly higher PSNR, because
@@ -391,11 +390,11 @@ Mode & Training & Clean bit-acc & Clean FDR & Dist.\ bit-acc & Dist.\ FDR & PSNR
 \subsection{The spatial bit-grid is the enabling component}
 \label{ssec:ablation}
 To isolate the bit-grid, we replace it with the global broadcast used by prior neural
-hiders and train both under an identical budget. The comparison is decisive. At 100 bits
+hiders and train both under an identical budget. At 100 bits
 the spatial grid reaches 100 percent bit accuracy and 100 percent full-decode, clean and
-distorted, while the broadcast layout stays at 51 to 53 percent bit accuracy, which is
-chance, and never achieves a single full decode. The grid is therefore not an incremental
-improvement but the component that makes the task learnable at this payload size.
+distorted, while the broadcast layout stays at 51 to 53 percent bit accuracy, at chance
+level, and never achieves a single full decode. At this payload size the grid is therefore
+a prerequisite for learning rather than a refinement of it.
 
 \subsection{Imperceptibility and robustness form a tunable frontier}
 The perturbation bound $\varepsilon$ moves the system along a frontier
@@ -477,7 +476,7 @@ Hamming(7,4)  & 56  & $0.57$ & $100.0\pm0.0$ \\
 A classical per-channel least-significant-bit scheme embeds the same payload with no
 training. It is perfect on clean images, at 100 percent full-decode and $78$~dB PSNR, but
 collapses under the distortion layer to $53.8$ percent bit accuracy and $3.9$ percent
-full-decode. The learned, distortion-trained channel is what closes this gap.
+full-decode. The learned, distortion-trained channel closes this gap.
 
 \subsection{Real screen-to-camera capture}
 The simulated distortion layer is a stand-in for the physical channel, so we test on real
@@ -499,7 +498,7 @@ the public payload and the private message are recovered in every case.}
 \end{figure*}
 
 \section{Discussion and Limitations}
-The clearest limitation is the one the frontier makes explicit. The covert regime, where
+The frontier makes the main limitation explicit: the covert regime, where
 the perturbation is invisible, does not survive physical capture, and the regime that
 survives capture carries a faint but visible color tint. We therefore present the visible
 robust regime as robust data embedding rather than as human-imperceptible steganography,
@@ -530,11 +529,11 @@ image-hiding setup does not face.
 \section{Conclusion}
 We presented StegaQR, a learned method that embeds a private bitstring inside a
 standard-decodable QR code through a bounded color perturbation. The design rests on a
-spatial bit-grid that gives each bit a location, which is what lets a single shared
+spatial bit-grid that gives each bit a location, which lets a single shared
 convolution learn the embedding at useful payload sizes where the global broadcast of prior
-neural hiders stalls at chance. Three switchable modes trade fault isolation, capacity, and
-structural guarantees, and a QR-anchored hybrid leaves the structural modules provably
-untouched. Training end to end through a differentiable distortion layer, and coupling the
+neural hiders stalls at chance. Three switchable modes offer different balances of fault
+isolation, capacity, and structural preservation, and a QR-anchored hybrid leaves the
+structural modules provably untouched. Training end to end through a differentiable distortion layer, and coupling the
 channel with error correction, yields models that recover the full private message from 99
 to 100 percent of distorted images and from every one of ten real photographs of a
 displayed code, while a standard reader recovers the public payload in every case. The

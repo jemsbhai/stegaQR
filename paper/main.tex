@@ -182,7 +182,156 @@ natural images with a broadcast payload, and the two-level QR code, which keeps 
 payload but is classical and untested on the capture channel we target.
 
 \section{Method}
-% TODO
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{fig_system}
+\caption{StegaQR pipeline. The public payload is rendered as a standard QR cover; the
+private bitstring is error-correction coded, laid out on a spatial bit-grid, and fused
+with the cover by a convolutional encoder that outputs a bounded color perturbation. A
+standard reader recovers the public payload from the stego code, while the trained
+decoder recovers the private bits. Encoder and decoder are trained jointly through a
+differentiable distortion layer.}
+\label{fig:system}
+\end{figure*}
+
+\subsection{Overview}
+StegaQR turns a public payload and a private bitstring into a single stego QR image
+(Fig.~\ref{fig:system}). The public payload is rendered as a standard QR code that serves
+as the cover. The private bitstring is protected by an error-correcting code, arranged on
+a spatial grid, and fused with the cover by a convolutional encoder that outputs a bounded
+color perturbation. At extraction, a standard reader recovers the public payload from the
+stego image directly, while a convolutional decoder recovers the private bits. The encoder
+and decoder are trained jointly with a differentiable distortion layer placed between them.
+
+\subsection{Cover and payload representation}
+\textbf{Cover.} The public payload is encoded as a version-4 QR code with error-correction
+level M under ISO/IEC 18004~\cite{iso18004}, which gives a $33\times33$ module grid. Each
+module is rendered as a square of $m$ pixels, so the cover is an RGB image of side $33m$;
+we use $m=4$. Dark modules are black and light modules are white.
+
+\textbf{Payload.} The private message is first expanded by an error-correcting code
+(Section~\ref{ssec:ecc}) into $L$ coded bits. We place these bits on a square grid. Let
+$g=\lceil\sqrt{L}\,\rceil$. The bits fill a $g\times g$ grid, one bit per cell, and the
+grid is upsampled by nearest-neighbor interpolation to the cover resolution to form a
+single-channel bit map $B\in\{0,1\}^{H\times W}$. Each bit thus occupies a contiguous
+block of pixels at a fixed location.
+
+\subsection{Spatial bit-grid}
+\label{ssec:bitgrid}
+The bit map is what makes the problem learnable. A convolution is translation equivariant
+with shared weights, so a network that learns to write one cell has learned to write every
+cell, and likewise for reading. Embedding $L$ bits is then about as hard as embedding a
+few. This is the point of departure from the global broadcast used by prior neural
+hiders~\cite{zhu2018hidden,tancik2020stegastamp,bui2023rosteals}, which replicate the
+message uniformly over the image and read it back by global pooling; there the network
+must learn $L$ distinct global patterns, which does not scale to the payload sizes we need.
+Section~\ref{ssec:ablation} quantifies the gap. Figure~\ref{fig:bitgrid} shows the write
+and read paths.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{fig_bitgrid}
+\caption{Spatial bit-grid. On embedding (top) the payload fills a $g\times g$ grid, one
+bit per cell, upsampled to the code resolution and written into the cover by the encoder.
+On extraction (bottom) the decoder produces an activation map, average-pools it back to the
+grid, and reads each cell. A single shared convolution learns one write-and-read operation
+that applies to all cells.}
+\label{fig:bitgrid}
+\end{figure*}
+
+\subsection{Encoder and decoder}
+\textbf{Encoder.} The encoder receives the concatenation of the cover, the bit map, and,
+in the hybrid mode, a structural mask (Section~\ref{ssec:modes}). It applies five
+$3\times3$ convolutional blocks with 64 channels, each block being convolution, group
+normalization, and ReLU with a residual connection, followed by a $1\times1$ convolution
+to three channels and a $\tanh$ nonlinearity. The output is scaled by a perturbation bound
+$\varepsilon$, added to the cover, and clamped:
+\begin{equation}
+\hat{x} = \mathrm{clip}\!\big(x + \varepsilon\,\tanh(f_\theta(x,B)),\,0,\,1\big).
+\end{equation}
+The bound $\varepsilon$ is the single knob that trades imperceptibility against robustness.
+
+\textbf{Decoder.} The decoder applies six convolutional blocks to the stego image, a
+$1\times1$ convolution to a single-channel activation map, an adaptive average pool to the
+$g\times g$ grid, and a per-cell readout that yields $L$ logits. Thresholding gives the
+recovered coded bits, which the error-correcting code maps back to the message. The
+architecture is shown in Fig.~\ref{fig:arch}.
+
+\textbf{Normalization.} We use group normalization rather than batch normalization. In the
+robust regime the perturbation is small relative to the cover, and the running statistics
+that batch normalization accumulates during training do not match the per-batch statistics
+seen at inference, which collapses decoding at test time. Group normalization removes this
+train and test mismatch.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{fig_architecture}
+\caption{Encoder and decoder. The encoder fuses the cover, the bit-grid map, and (hybrid
+only) the structural mask through grouped convolutions and emits a bounded, optionally
+masked perturbation added to the cover. The decoder reads the payload by pooling its
+activation map back to the bit-grid. Group normalization is used throughout.}
+\label{fig:arch}
+\end{figure*}
+
+\subsection{Channel modes}
+\label{ssec:modes}
+The three modes share the template above but differ in how color is used and what is
+protected.
+
+\textbf{Segregated.} Three independent sub-encoders and sub-decoders, one per color
+channel, each embedding $L/3$ bits on its own grid. A failure in one channel cannot
+corrupt the others, which gives fault isolation at the cost of treating the channels
+separately.
+
+\textbf{Cross-channel.} A single encoder and decoder use all three channels jointly, which
+gives the most freedom in placing the perturbation.
+
+\textbf{Hybrid (QR-anchored).} The cross-channel design with two QR-aware constraints. A
+binary structural mask marks the finder, timing, format, and alignment modules, and the
+encoder multiplies its perturbation by this mask so those modules are left exactly as in
+the cover, which guarantees the structural anatomy of the code is unchanged. Because masked
+cells cannot carry payload, the hybrid layout places bits only on the data-rich cells of a
+finer grid, selected once from the mask. We found that an explicit color-calibration branch
+in the decoder destabilized training without improving accuracy, so the hybrid decoder
+omits it; the convolutional decoder already absorbs photometric variation.
+
+\subsection{Distortion layer and training}
+\textbf{Distortion layer.} A differentiable distortion layer sits between the encoder and
+decoder during training and applies, each with a fixed probability, additive Gaussian
+noise, a JPEG-like quantization proxy, brightness scaling, per-channel color shift, and
+Gaussian blur. The decoder therefore learns to read bits from degraded stego images, which
+is what transfers to physical capture.
+
+\textbf{Objective.} The loss combines a decoding term, an imperceptibility term, and a
+structural term:
+\begin{equation}
+\mathcal{L} = \lambda_d\,\mathcal{L}_{\text{dec}} + \lambda_p\,\mathcal{L}_{\text{perc}}
+            + \lambda_s\,\mathcal{L}_{\text{struct}}.
+\end{equation}
+$\mathcal{L}_{\text{dec}}$ is the binary cross-entropy between recovered and true coded
+bits. $\mathcal{L}_{\text{perc}}$ combines mean squared error with a penalty on the largest
+per-pixel deviation, keeping the perturbation small. $\mathcal{L}_{\text{struct}}$ is a
+hinge that keeps structural modules close to their cover values.
+
+\textbf{Curriculum.} Optimizing the decoding and imperceptibility terms together from
+scratch is unstable: the imperceptibility term can drive the perturbation to zero before
+the decoder has learned to read it. We therefore train decoding only for a short warmup,
+then ramp the imperceptibility and structural weights linearly to their targets. The
+networks are optimized with Adam at a base rate of $10^{-3}$ under cosine annealing with
+gradient clipping. We select the final checkpoint by its message recovery under distortion,
+breaking ties toward higher PSNR, which avoids both the trivial high-PSNR solution that
+fails under capture and an over-strong perturbation that is needlessly visible.
+
+\subsection{Error-correction coding}
+\label{ssec:ecc}
+The decoder recovers individual bits with high but imperfect accuracy, and one wrong bit
+ruins a message. We therefore protect the message with an error-correcting code before
+embedding. We use a repetition code with soft-decision combining, in which the decoder sums
+the logits of the repeated copies, and a Hamming(7,4) code as a higher-rate alternative.
+With $k$ message bits expanded to $L$ coded bits, the net capacity is $k$ and the rate is
+$k/L$. Coding converts the decoder's per-bit accuracy into exact message recovery at the
+cost of capacity.
 
 \section{Experimental Setup}
 % TODO

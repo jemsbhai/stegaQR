@@ -35,12 +35,12 @@ refs before camera-ready.*
 
 | Work | Cover | Neural? | Capacity | Imperceptibility | Robustness tested | Public QR still decodable? |
 |------|-------|---------|----------|------------------|-------------------|----------------------------|
-| Baluja '17 | natural image | ✓ | full image | high (SSE) | none | n/a |
-| HiDDeN '18 | natural image | ✓ | ~30–52 b | PSNR ~30 dB★ | sim (blur/crop/JPEG) | n/a |
-| StegaStamp '20 | natural photo | ✓ | 56 b (BCH) | visible-ish | **print + photo** | n/a |
-| RoSteALS '23 | natural image | ✓ | 100 b★ | high | sim only | n/a |
-| 2LQR '16 | **QR** | ✗ | ★ | machine-covert (textured) | print-scan★ | **yes** |
-| HiQ '17 | color QR | ✗ (ML dec.) | high | overt color | mobile capture | **no** |
+| Baluja '17 | natural image | ✓ | full RGB image | high | none | n/a |
+| HiDDeN '18 | natural image | ✓ | 52 b (0.203 bpp) | visually indist. (no PSNR headline) | sim (blur/crop/JPEG/Gaussian) | n/a |
+| StegaStamp '20 | natural photo | ✓ | 56 b (post-BCH) | near-invisible | **print + photo** | n/a |
+| RoSteALS '23 | natural image | ✓ | 100 b (released ckpt) | high | sim only | n/a |
+| 2LQR '16 | **QR** | ✗ | up to 20,000 b (v40, 8-ary RS) | visible (textured) | print-scan | **yes** |
+| HiQ '17/'18 | color QR | ✗ (ML dec.) | up to 8,900 B (3 color layers) | overt color | mobile capture | **no** |
 | Halftone QR '13 | QR | ✗ | (visible image) | overt | — | yes |
 | **StegaQR (ours)** | **QR** | **✓** | 100 b raw / 33–56 b net | 15–44 dB (tunable) | **sim + real screen→phone** | **yes (100%)** |
 
@@ -66,6 +66,9 @@ operating point.
 
 ## Open TODOs flagged by the research
 - Confirm **no neural data-in-QR prior** keeps the public payload standard-decodable (none surfaced; strengthens novelty — do one targeted "deep learning QR steganography" search before submission).
-- Extract **PSNR/SSIM + capacity numbers from 2LQR and HiQ** to complete the table.
+- ~~Extract capacity numbers from 2LQR and HiQ to complete the table.~~ DONE (2026-06-16,
+  web-verified): 2LQR up to 20,000 private bits (v40, 8-ary RS); HiQ 2900/7700/8900 B over
+  three color layers (arXiv:1704.06447). Neither reports a PSNR headline (both overt). These
+  are now in main.tex Table~\ref{tab:related}.
 - Add the proper **multispecqr / ICMLA** citation (our predecessor; not externally verifiable here).
 - Verify ★ refs (RivaGAN bib; HiDDeN ECCV pages; HiQ year; Fang screen-shooting 2018 vs 2019).

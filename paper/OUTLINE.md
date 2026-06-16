@@ -66,7 +66,8 @@ contribution, not a caveat.
 - Imperceptible regime example: 54.9 dB / SSIM 1.000, public ✓ (fig_examples).
 
 ## Pre-submission TODOs (from related_work.md + audit)
-- 2LQR / HiQ exact PSNR & capacity for the comparison table.
+- ~~2LQR / HiQ exact capacity for the comparison table.~~ DONE: 2LQR up to 20,000 b (v40);
+  HiQ up to 8,900 B (3 color layers). Comparison table added to main.tex (Table II, tab:related).
 - multispecqr (ICMLA) citation.
 - Verify ★ refs; one targeted "deep-learning QR steganography" search to confirm novelty.
 - Optional strengtheners: degradation-sweep capture, higher-capacity model, version/EC sweep.

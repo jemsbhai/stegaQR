@@ -179,6 +179,35 @@ provably preserves the structural modules, and is validated on real screen-to-ca
 capture. The closest neighbors are StegaStamp, which is neural and physical but hides in
 natural images with a broadcast payload, and the two-level QR code, which keeps the public
 payload but is classical and untested on the capture channel we target.
+Table~\ref{tab:related} summarizes these contrasts.
+
+\begin{table*}[t]
+\centering
+\caption{StegaQR against representative prior work. ``Public QR'' is whether a standard
+monochrome QR reader still decodes the public payload from the published artifact. Payload
+figures are as reported by each source: HiDDeN $52$ bits at $0.203$ bits per pixel;
+StegaStamp $56$ bits after BCH correction; 2LQR up to $20{,}000$ private bits in a
+version-40 symbol; HiQ up to $8{,}900$ bytes across three color layers. ``ML dec.'' marks a
+classical embedding read back by a trained classifier rather than a learned encoder and
+decoder pair. Dashes mark properties the source does not report; ``n/a'' marks the public-QR
+column for natural-image covers.}
+\label{tab:related}
+\begin{tabular}{llllllc}
+\toprule
+Method & Cover & Learned & Payload & Imperceptibility & Robustness validated & Public QR \\
+\midrule
+Baluja~\cite{baluja2017hiding}         & natural image & yes      & full RGB image                 & high               & none                         & n/a \\
+HiDDeN~\cite{zhu2018hidden}            & natural image & yes      & $52$ b ($0.203$ bpp)           & visually indist.   & simulated                    & n/a \\
+StegaStamp~\cite{tancik2020stegastamp} & natural photo & yes      & $56$ b (post-BCH)              & near-invisible     & print + photo                & n/a \\
+RoSteALS~\cite{bui2023rosteals}        & natural image & yes      & $100$ b                        & high               & simulated                    & n/a \\
+2LQR~\cite{tkachenko2016twolevel}      & QR            & no       & up to $20{,}000$ b             & visible (textured) & print-scan                   & yes \\
+HiQ~\cite{yang2018hiq}                 & color QR      & ML dec.  & up to $8{,}900$ B              & overt color        & mobile capture               & no  \\
+Halftone QR~\cite{chu2013halftone}     & QR            & no       & visible image                  & overt              & ---                          & yes \\
+\midrule
+\textbf{StegaQR (ours)}                & QR            & yes      & $100$ b raw, $33$--$56$ b net  & $18$--$55$ dB (tunable) & simulated + screen-to-camera & yes \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
 \section{Method}
 

@@ -499,10 +499,49 @@ the public payload and the private message are recovered in every case.}
 \end{figure*}
 
 \section{Discussion and Limitations}
-% TODO
+The clearest limitation is the one the frontier makes explicit. The covert regime, where
+the perturbation is invisible, does not survive physical capture, and the regime that
+survives capture carries a faint but visible color tint. We therefore present the visible
+robust regime as robust data embedding rather than as human-imperceptible steganography,
+and reserve the covert label for the high-PSNR end. A reader who looks closely can tell a
+robust StegaQR code from a plain one; what they cannot do is read the private payload.
+
+Net capacity is modest. At 100 embedded bits a rate-1/3 code leaves 33 message bits, and a
+Hamming code leaves 56, which is enough for an identifier, a short token, or a key but not
+for a long message. The capacity sweep shows that the embedded budget extends to at least
+200 bits at high bit accuracy, so larger payloads are reachable, though exact recovery at
+the top of that range leans more on the error-correcting code.
+
+The evaluation fixes the QR version, error-correction level, and resolution, and the
+physical study is a single session on one display and one camera with ten codes. These
+choices are enough to establish that distortion training transfers to real capture, but a
+broader sweep over devices, lighting, angle, and printed media, and over QR versions, would
+strengthen the deployment case. We also do not study steganalysis: we do not measure how
+hard it is for an adversary who knows the scheme to detect or remove the payload. In the
+covert regime detectability is the natural next question, and in the robust regime the
+relevant question is removal under adversarial post-processing.
+
+Finally, the hybrid mode needed care to train. The structural mask removes payload capacity
+from the protected cells, and an explicit calibration branch we initially included made the
+cold start unstable. Placing bits only on data-rich cells and removing that branch resolved
+both, but it shows that QR-aware constraints interact with optimization in ways that a plain
+image-hiding setup does not face.
 
 \section{Conclusion}
-% TODO
+We presented StegaQR, a learned method that embeds a private bitstring inside a
+standard-decodable QR code through a bounded color perturbation. The design rests on a
+spatial bit-grid that gives each bit a location, which is what lets a single shared
+convolution learn the embedding at useful payload sizes where the global broadcast of prior
+neural hiders stalls at chance. Three switchable modes trade fault isolation, capacity, and
+structural guarantees, and a QR-anchored hybrid leaves the structural modules provably
+untouched. Training end to end through a differentiable distortion layer, and coupling the
+channel with error correction, yields models that recover the full private message from 99
+to 100 percent of distorted images and from every one of ten real photographs of a
+displayed code, while a standard reader recovers the public payload in every case. The
+gains over a clean-trained model and a classical baseline are large, and the imperceptibility
+and robustness ends of the system are characterized as a single tunable frontier. Code and
+trained models will be released. Future work includes larger payloads, a broader physical
+and cross-device study, coverage of more QR versions, and a steganalysis of both regimes.
 
 \bibliographystyle{IEEEtran}
 \bibliography{refs}

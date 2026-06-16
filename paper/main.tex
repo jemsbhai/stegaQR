@@ -334,10 +334,169 @@ $k/L$. Coding converts the decoder's per-bit accuracy into exact message recover
 cost of capacity.
 
 \section{Experimental Setup}
-% TODO
+\textbf{Data.} Training data is generated on the fly. Each sample is a version-4,
+level-M QR code rendered from a random alphanumeric public payload, paired with a random
+private message. No external dataset is used. Unless stated otherwise the payload is
+$L=100$ coded bits and the module size is $m=4$, giving a $132\times132$ cover.
+
+\textbf{Training.} Each configuration is trained for five seeds. We train for 24 epochs
+with batch size 16, 1500 fresh samples per epoch, Adam at $10^{-3}$ with cosine
+annealing and gradient clipping, a three-epoch decode-only warmup, and an eight-epoch
+ramp of the imperceptibility and structural weights. We compare two regimes: a clean
+regime with the distortion layer disabled, and a distortion-trained regime with it
+enabled. Unless noted, the perturbation bound is $\varepsilon=0.3$ and the encoder
+adapts the actual perturbation downward through the imperceptibility loss.
+
+\textbf{Metrics.} We report bit accuracy (fraction of correct coded bits), full-decode
+rate (fraction of samples with every coded bit correct), message-decode rate (fraction
+of messages recovered exactly after error correction), PSNR and SSIM of the stego image
+against the cover, and public decode rate, the fraction of stego images whose public
+payload a standard reader (ZBar) decodes correctly. Rates are reported as mean and a 95
+percent confidence interval over the five seeds.
+
+\textbf{Hardware.} All experiments run on a single 16~GB GPU.
 
 \section{Results}
-% TODO
+
+\subsection{Channel modes and the effect of distortion training}
+Table~\ref{tab:modes} reports the three modes under both training regimes. Two patterns
+are consistent across seeds. First, the public payload is decoded by a standard reader in
+every condition, so the embedding never breaks the cover. Second, distortion training is
+what produces robustness. Clean-trained models are near perfect on clean stego images but
+recover the full message from only about 10 to 14 percent of distorted images, whereas
+distortion-trained models recover it from 99 to 100 percent. Cross-channel and segregated
+behave almost identically; the hybrid mode matches them at a slightly higher PSNR, because
+restricting the perturbation to data modules concentrates it where it is useful.
+
+\begin{table*}[t]
+\centering
+\caption{Channel modes, capacity 100 bits, five seeds (mean $\pm$ 95\% CI). FDR is the
+full-decode rate (all bits correct). PSNR/SSIM are stego vs. cover. Public decode is by a
+standard ZBar reader.}
+\label{tab:modes}
+\begin{tabular}{llcccccc}
+\toprule
+Mode & Training & Clean bit-acc & Clean FDR & Dist.\ bit-acc & Dist.\ FDR & PSNR (dB) & Public decode \\
+\midrule
+\multirow{2}{*}{Segregated}    & clean      & $100.0\pm0.0$ & $100.0\pm0.0$ & $65.5\pm5.7$  & $13.9\pm11.3$ & $63.5$ & $100.0$ \\
+                               & distortion & $100.0\pm0.0$ & $99.8\pm0.3$  & $100.0\pm0.0$ & $99.1\pm0.8$  & $17.6$ & $100.0$ \\
+\multirow{2}{*}{Cross-channel} & clean      & $100.0\pm0.0$ & $99.5\pm0.9$  & $63.8\pm10.6$ & $10.0\pm19.6$ & $61.7$ & $100.0$ \\
+                               & distortion & $100.0\pm0.0$ & $99.8\pm0.3$  & $100.0\pm0.0$ & $99.2\pm1.5$  & $19.0$ & $100.0$ \\
+\multirow{2}{*}{Hybrid}        & clean      & $100.0\pm0.0$ & $99.8\pm0.3$  & $66.1\pm7.1$  & $13.9\pm11.3$ & $58.8$ & $100.0$ \\
+                               & distortion & $100.0\pm0.0$ & $100.0\pm0.0$ & $100.0\pm0.0$ & $100.0\pm0.0$ & $22.3$ & $100.0$ \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{The spatial bit-grid is the enabling component}
+\label{ssec:ablation}
+To isolate the bit-grid, we replace it with the global broadcast used by prior neural
+hiders and train both under an identical budget. The comparison is decisive. At 100 bits
+the spatial grid reaches 100 percent bit accuracy and 100 percent full-decode, clean and
+distorted, while the broadcast layout stays at 51 to 53 percent bit accuracy, which is
+chance, and never achieves a single full decode. The grid is therefore not an incremental
+improvement but the component that makes the task learnable at this payload size.
+
+\subsection{Imperceptibility and robustness form a tunable frontier}
+The perturbation bound $\varepsilon$ moves the system along a frontier
+(Fig.~\ref{fig:imperceptibility}). At small $\varepsilon$ the stego code is visually
+indistinguishable from the cover. A clean-trained cross-channel model reaches $54.9$~dB
+PSNR with SSIM $1.000$ and full public decode, which is the covert regime
+(Fig.~\ref{fig:examples}, second column). Surviving physical capture requires a larger
+perturbation, which appears as a faint color tint at PSNR near $20$~dB; this is the robust
+regime that we use for the capture study. Figure~\ref{fig:examples} also shows that the
+hybrid residual is exactly zero on the finder patterns, confirming that the structural
+modules are untouched.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_imperceptibility}
+\caption{Imperceptibility against robustness across trained models. The covert regime
+(high PSNR) is near invisible; the robust regime (lower PSNR) survives capture.}
+\label{fig:imperceptibility}
+\end{figure}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.96\textwidth]{fig_examples}
+\caption{Cover versus stego at three operating points with normalized residuals. The
+covert model is visually identical to the cover at $54.9$~dB; the robust and hybrid models
+carry a faint tint. The hybrid residual is zero on the finder patterns (bottom right),
+showing the structural mask leaves them unchanged. All public payloads decode.}
+\label{fig:examples}
+\end{figure*}
+
+\subsection{Capacity scaling}
+Table~\ref{tab:capacity} sweeps the embedded capacity of the cross-channel model under
+distortion. Distorted bit accuracy stays at or above 99 percent from 25 to 200 bits, and
+the full-decode rate stays high except at 150 bits, where one seed was an outlier and
+widened the interval. Higher capacity is therefore available, with the usual caveat that
+exact full-message decode at large payloads benefits from error correction.
+
+\begin{table}[t]
+\centering
+\caption{Capacity scaling, cross-channel, distortion-trained.}
+\label{tab:capacity}
+\begin{tabular}{cccc}
+\toprule
+Capacity (bits) & Dist.\ bit-acc & Dist.\ FDR & PSNR (dB) \\
+\midrule
+25  & $99.9\pm0.1$  & $97.7\pm2.3$  & $23.7$ \\
+50  & $100.0\pm0.0$ & $99.7\pm0.5$  & $20.3$ \\
+100 & $100.0\pm0.0$ & $99.2\pm1.5$  & $19.0$ \\
+150 & $99.3\pm1.4$  & $86.5\pm24.2$ & $23.9$ \\
+200 & $100.0\pm0.0$ & $95.3\pm7.0$  & $19.0$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Error-correction coding gives exact messages}
+A single wrong bit ruins a message, so we measure message-decode rate after coding
+(Table~\ref{tab:ecc}). On the distortion-trained cross-channel model, a Hamming(7,4) code
+recovers the message exactly in every case at 56 net bits, and a rate-1/3 repetition code
+reaches $99.5$ percent at 33 net bits. Coding cleanly converts the decoder's high bit
+accuracy into exact recovery.
+
+\begin{table}[t]
+\centering
+\caption{Message-decode rate under distortion (cross-channel, 100 embedded bits).}
+\label{tab:ecc}
+\begin{tabular}{lccc}
+\toprule
+Code & Net bits & Rate & Message decode \\
+\midrule
+None (raw)    & 100 & $1.00$ & $99.2\pm1.5$ \\
+Repetition-3  & 33  & $0.33$ & $99.5\pm0.6$ \\
+Repetition-5  & 20  & $0.20$ & $98.1\pm1.1$ \\
+Hamming(7,4)  & 56  & $0.57$ & $100.0\pm0.0$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Classical baseline}
+A classical per-channel least-significant-bit scheme embeds the same payload with no
+training. It is perfect on clean images, at 100 percent full-decode and $78$~dB PSNR, but
+collapses under the distortion layer to $53.8$ percent bit accuracy and $3.9$ percent
+full-decode. The learned, distortion-trained channel is what closes this gap.
+
+\subsection{Real screen-to-camera capture}
+The simulated distortion layer is a stand-in for the physical channel, so we test on real
+captures. We displayed ten distinct stego codes from the distortion-trained hybrid model
+on a monitor and photographed them with a smartphone, free-hand, at varied angle and
+distance. Each photograph was localized and rectified with a standard detector, then
+decoded. The QR was located in all ten, the public payload decoded in all ten, and the
+private message, protected by a rate-1/3 code, was recovered in all ten
+(Fig.~\ref{fig:capture}). The robustness learned against the simulated layer therefore
+transfers to genuine display, optics, and sensor distortions.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.96\textwidth]{fig_capture}
+\caption{Real screen-to-camera capture. Stego codes displayed on a monitor and
+photographed with a smartphone are localized, rectified, and decoded. Across ten photos
+the public payload and the private message are recovered in every case.}
+\label{fig:capture}
+\end{figure*}
 
 \section{Discussion and Limitations}
 % TODO

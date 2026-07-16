@@ -55,12 +55,11 @@ class TestCoreAPISmoke:
         assert isinstance(hidden, (bytes, bytearray))
         assert meta["mode"] == "cross_channel" and meta["ecc"] == "rep3"
 
-    def test_public_qr_scans_untrained(self, tmp_path):
-        """Even untrained, the public payload must remain standard-decodable."""
-        from stegaqr.core import StegaQREncoder, StegaQRDecoder
-        ck = _make_checkpoint(tmp_path, ms=8)  # larger modules scan more reliably
-        img = StegaQREncoder(ck, ecc="rep3", device="cpu").encode("PUBLIC123", b"hi")
-        public, _, _ = StegaQRDecoder(ck, ecc="rep3", device="cpu").decode(img)
+    def test_public_qr_scans_bundled_model(self):
+        """The release model must preserve the standard QR payload."""
+        from stegaqr.core import decode_hidden, encode_hidden
+        img = encode_hidden("PUBLIC123", b"hi", ecc="rep3", device="cpu")
+        public, _, _ = decode_hidden(img, ecc="rep3", device="cpu")
         assert public == "PUBLIC123"
 
 

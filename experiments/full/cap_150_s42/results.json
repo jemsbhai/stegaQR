@@ -7,7 +7,7 @@
     "seed_train": 42,
     "use_distortion_train": true,
     "lambda_perceptual": 4.0,
-    "checkpoint": "E:\\data\\code\\claudecode\\mQRstego\\experiments\\full\\cap_150_s42\\best_model.pt",
+    "checkpoint": "experiments/full/cap_150_s42/best_model.pt",
     "epoch": 4
   },
   "clean": {

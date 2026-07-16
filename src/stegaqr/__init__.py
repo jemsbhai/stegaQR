@@ -7,6 +7,7 @@ from stegaqr.core import (
     StegaQRDecoder,
     encode_hidden,
     decode_hidden,
+    default_model_path,
     StegoMode,
 )
 
@@ -15,6 +16,7 @@ __all__ = [
     "StegaQRDecoder",
     "encode_hidden",
     "decode_hidden",
+    "default_model_path",
     "StegoMode",
     "__version__",
 ]

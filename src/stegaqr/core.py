@@ -16,6 +16,7 @@ usable hidden capacity is smaller than the model's raw bit capacity (see
 from __future__ import annotations
 
 from enum import Enum
+from pathlib import Path
 from typing import Optional
 
 import numpy as np
@@ -33,6 +34,16 @@ class StegoMode(Enum):
     SEGREGATED = "segregated"
     CROSS_CHANNEL = "cross_channel"
     HYBRID = "hybrid"
+
+
+def default_model_path() -> Path:
+    """Return the trained model bundled with the installed package."""
+    path = Path(__file__).resolve().parent / "assets" / "stegaqr_default.pt"
+    if not path.is_file():
+        raise FileNotFoundError(
+            "the bundled StegaQR model is missing; reinstall stegaQR or pass model=PATH"
+        )
+    return path
 
 
 def _load(model_path, device):
@@ -54,17 +65,20 @@ class StegaQREncoder:
 
     Parameters
     ----------
-    model : str
-        Path to a checkpoint (best_model.pt) produced by training.
+    model : str or pathlib.Path, optional
+        Path to a checkpoint produced by training. Uses the bundled model by default.
     ecc : str
         Error-correcting code: 'rep3' | 'rep5' | 'hamming74' | 'none'.
     device : str
         'cuda' or 'cpu' (falls back to CPU if CUDA unavailable).
     """
 
-    def __init__(self, model: str, ecc: str = "rep3", device: str = "cuda") -> None:
+    def __init__(
+        self, model: str | Path | None = None, ecc: str = "rep3", device: str = "cuda"
+    ) -> None:
         self.device = device if torch.cuda.is_available() else "cpu"
-        self.encoder, _, self.is_hybrid, self.cfg = _load(model, self.device)
+        self.model_path = Path(model) if model is not None else default_model_path()
+        self.encoder, _, self.is_hybrid, self.cfg = _load(self.model_path, self.device)
         self.ecc = get_ecc(ecc)
         self.capacity = self.cfg["capacity_bits"]
         self._k = self.ecc.message_len(self.capacity)  # usable message bits
@@ -115,11 +129,16 @@ class StegaQRDecoder:
 
     For photographs use scripts/decode_from_photo.py (perspective rectification);
     this class targets clean digital images and resizes to the model resolution.
+
+    The bundled model is used unless ``model`` points to another checkpoint.
     """
 
-    def __init__(self, model: str, ecc: str = "rep3", device: str = "cuda") -> None:
+    def __init__(
+        self, model: str | Path | None = None, ecc: str = "rep3", device: str = "cuda"
+    ) -> None:
         self.device = device if torch.cuda.is_available() else "cpu"
-        _, self.decoder, self.is_hybrid, self.cfg = _load(model, self.device)
+        self.model_path = Path(model) if model is not None else default_model_path()
+        _, self.decoder, self.is_hybrid, self.cfg = _load(self.model_path, self.device)
         self.ecc = get_ecc(ecc)
         self.capacity = self.cfg["capacity_bits"]
         self._k = self.ecc.message_len(self.capacity)
@@ -177,13 +196,13 @@ class StegaQRDecoder:
         return public, hidden, meta
 
 
-def encode_hidden(public_payload: str, hidden_payload: bytes, *, model: str,
+def encode_hidden(public_payload: str, hidden_payload: bytes, *, model: str | Path | None = None,
                   ecc: str = "rep3", device: str = "cuda") -> Image.Image:
     """One-shot encode. See StegaQREncoder."""
     return StegaQREncoder(model, ecc=ecc, device=device).encode(public_payload, hidden_payload)
 
 
-def decode_hidden(image: Image.Image, *, model: str, ecc: str = "rep3",
+def decode_hidden(image: Image.Image, *, model: str | Path | None = None, ecc: str = "rep3",
                   device: str = "cuda") -> tuple[Optional[str], Optional[bytes], dict]:
     """One-shot decode. See StegaQRDecoder."""
     return StegaQRDecoder(model, ecc=ecc, device=device).decode(image)

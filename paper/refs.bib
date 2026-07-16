@@ -1,9 +1,8 @@
 % StegaQR references. All entries verified by web search (2026-06-15) against
 % primary sources (NeurIPS, CVF, ECVA, ACM-DL, IEEE Xplore, arXiv), not hallucinated.
-% Avoid the at-sign and em-dashes in comments: BibTeX scans comment text for the
-% at-sign and would try to parse it as an entry.
+% Avoid the at-sign in comments because BibTeX may try to parse it as an entry.
 
-% ---------- Neural encoder–decoder data hiding (lineage) ----------
+% Neural encoder and decoder data hiding
 @inproceedings{baluja2017hiding,
   author    = {Baluja, Shumeet},
   title     = {Hiding Images in Plain Sight: Deep Steganography},
@@ -16,7 +15,7 @@
   author    = {Zhu, Jiren and Kaplan, Russell and Johnson, Justin and Fei-Fei, Li},
   title     = {{HiDDeN}: Hiding Data with Deep Networks},
   booktitle = {European Conference on Computer Vision (ECCV)},
-  pages     = {657--672},
+  pages     = {657 to 672},
   year      = {2018}
 }
 
@@ -24,7 +23,7 @@
   author    = {Tancik, Matthew and Mildenhall, Ben and Ng, Ren},
   title     = {{StegaStamp}: Invisible Hyperlinks in Physical Photographs},
   booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
-  pages     = {2117--2126},
+  pages     = {2117 to 2126},
   year      = {2020}
 }
 
@@ -32,7 +31,7 @@
   author    = {Bui, Tu and Agarwal, Shruti and Yu, Ning and Collomosse, John},
   title     = {{RoSteALS}: Robust Steganography Using Autoencoder Latent Space},
   booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition Workshops (CVPRW)},
-  pages     = {933--942},
+  pages     = {933 to 942},
   year      = {2023}
 }
 
@@ -43,7 +42,16 @@
   year    = {2019}
 }
 
-% ---------- Data hiding in QR / 2D barcodes (classical; our cover medium) ----------
+% Data hiding in QR and 2D barcodes
+@inproceedings{lin2016qr,
+  author    = {Lin, Pei-Yu and Chen, Yi-Hui},
+  title     = {{QR} Code Steganography with Secret Payload Enhancement},
+  booktitle = {IEEE International Conference on Multimedia and Expo Workshops},
+  pages     = {1 to 5},
+  year      = {2016},
+  doi       = {10.1109/ICMEW.2016.7574744}
+}
+
 @article{tkachenko2016twolevel,
   author  = {Tkachenko, Iuliia and Puech, William and Destruel, Christophe and
              Strauss, Olivier and Gaudin, Jean-Marc and others},
@@ -51,7 +59,7 @@
   journal = {IEEE Transactions on Information Forensics and Security},
   volume  = {11},
   number  = {3},
-  pages   = {571--583},
+  pages   = {571 to 583},
   year    = {2016},
   doi     = {10.1109/TIFS.2015.2506546}
 }
@@ -62,7 +70,7 @@
   journal = {IEEE Transactions on Image Processing},
   volume  = {27},
   number  = {12},
-  pages   = {6093--6108},
+  pages   = {6093 to 6108},
   year    = {2018}
 }
 
@@ -73,7 +81,7 @@
   volume    = {32},
   number    = {6},
   articleno = {217},
-  pages     = {217:1--217:8},
+  pages     = {217:1 to 217:8},
   year      = {2013},
   doi       = {10.1145/2508363.2508408}
 }
@@ -87,14 +95,25 @@
   note    = {arXiv:2001.06203}
 }
 
-% ---------- Physical channel: screen-shooting / print-scan robust watermarking ----------
+@article{koptyra2024segmentation,
+  author  = {Koptyra, Katarzyna and Ogiela, Marek R.},
+  title   = {Steganography in {QR} Codes: Information Hiding with Suboptimal Segmentation},
+  journal = {Electronics},
+  volume  = {13},
+  number  = {13},
+  pages   = {2658},
+  year    = {2024},
+  doi     = {10.3390/electronics13132658}
+}
+
+% Physical channel robustness
 @article{fang2019screen,
   author  = {Fang, Han and Zhang, Weiming and Zhou, Hang and Cui, Hao and Yu, Nenghai},
   title   = {Screen-Shooting Resilient Watermarking},
   journal = {IEEE Transactions on Information Forensics and Security},
   volume  = {14},
   number  = {6},
-  pages   = {1403--1418},
+  pages   = {1403 to 1418},
   year    = {2019},
   doi     = {10.1109/TIFS.2018.2878541}
 }
@@ -103,23 +122,23 @@
   author    = {Fang, Han and Jia, Zhaoyang and Ma, Zehua and Chang, Ee-Chien and Zhang, Weiming},
   title     = {{PIMoG}: An Effective Screen-Shooting Noise-Layer Simulation for Deep-Learning-Based Watermarking Network},
   booktitle = {Proceedings of the 30th ACM International Conference on Multimedia (ACM MM)},
-  pages     = {2267--2275},
+  pages     = {2267 to 2275},
   year      = {2022},
   doi       = {10.1145/3503161.3548049}
 }
 
-% ---------- Standard ----------
+% QR standard
 @misc{iso18004,
   author       = {{ISO/IEC}},
-  title        = {{ISO/IEC} 18004:2015 --- Information technology --- Automatic identification
-                  and data capture techniques --- {QR} Code bar code symbology specification},
+  title        = {{ISO/IEC} 18004:2015: Information Technology: Automatic Identification
+                  and Data Capture Techniques: {QR} Code Bar Code Symbology Specification},
   howpublished = {International Standard},
   year         = {2015}
 }
 
-% ---------- Authors' prior work ----------
+% Authors' prior work
 % NOTE: the authors' prior MultiSpecQR paper is omitted for the anonymous submission
 % (it is under review and citing it as "our prior work" would de-anonymize). The
 % motivating brittleness it embodies is instead supported by public, citable results
-% (xie2020lcac and the print-scan / screen-shooting line). CAMERA-READY TODO: after
+% (xie2020lcac and the print-scan / screen-shooting line). Camera-ready note: after
 % acceptance/de-anonymization, add it back here and cite as prior work in Sec. I.

@@ -211,7 +211,8 @@ def evaluate_real_distortions(ckpt_path, n=128, presets=None, ecc_name="rep3",
     gt = payload.cpu().numpy().astype(np.uint8)
 
     results = {"config": {"mode": mode, "capacity_bits": cap, "ecc": ecc_name,
-                          "net_bits": int(k), "checkpoint": str(ckpt_path)}, "presets": {}}
+                          "net_bits": int(k), "checkpoint": str(ckpt_path),
+                          "n": int(n), "seed_eval": int(seed)}, "presets": {}}
     for name in presets:
         fn = preset_fns[name]
         dist_np = np.stack([fn(stego_np[i]) for i in range(n)])      # (n,H,W,3)

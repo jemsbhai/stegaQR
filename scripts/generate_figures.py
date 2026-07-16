@@ -88,7 +88,7 @@ def fig_imperceptibility(runs):
         ys = [p[1] for p in pts if p[2] == mode]
         if xs:
             ax.scatter(xs, ys, marker=mk, label=mode, alpha=0.7)
-    ax.set_xlabel("PSNR (dB)  --  imperceptibility")
+    ax.set_xlabel("PSNR (dB), increasing imperceptibility")
     ax.set_ylabel("distorted full-decode rate (%)")
     ax.set_title("Imperceptibility vs robustness frontier")
     ax.legend(); ax.grid(alpha=0.3)

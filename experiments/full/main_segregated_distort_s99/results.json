@@ -7,7 +7,7 @@
     "seed_train": 99,
     "use_distortion_train": true,
     "lambda_perceptual": 4.0,
-    "checkpoint": "E:\\data\\code\\claudecode\\mQRstego\\experiments\\full\\main_segregated_distort_s99\\best_model.pt",
+    "checkpoint": "experiments/full/main_segregated_distort_s99/best_model.pt",
     "epoch": 4
   },
   "clean": {

@@ -12,35 +12,38 @@
 
 \graphicspath{{figures/}}
 
+% Use colons in the abstract and keyword labels to avoid dash punctuation.
+\makeatletter
+\def\abstract{\normalfont\@IEEEabskeysecsize\bfseries\textit{\abstractname}:\ \relax
+  \@IEEEgobbleleadPARNLSP}
+\def\IEEEkeywords{\normalfont\@IEEEabskeysecsize\bfseries\textit{\IEEEkeywordsname}:\ \relax
+  \@IEEEgobbleleadPARNLSP}
+\makeatother
+
 \begin{document}
 
-\title{StegaQR: Robust Neural Data Embedding in QR Codes\\ with Switchable Channel Modes}
+\title{StegaQR: Learned Private Data Embedding\\ in Standard-Decodable QR Codes}
 
-% ICTAI is single-blind; fill author block before camera-ready.
-\author{\IEEEauthorblockN{Anonymous Author(s)}
-\IEEEauthorblockA{Affiliation \\ City, Country \\ email@domain}}
+% ICTAI 2026 uses double-blind review. Add authors only to the accepted version.
+\author{\IEEEauthorblockN{Anonymous submission}}
 
 \maketitle
 
 \begin{abstract}
-Quick Response (QR) codes are ubiquitous machine-readable carriers, yet the data
-they expose is entirely public. We present StegaQR, a neural method that embeds an
-additional private bitstring inside a standard-looking QR code through learned color
-perturbations, so that any conventional reader still recovers the public payload
-while only a trained decoder recovers the private one. The core of the method is a
-spatial bit-grid payload layout, in which each private bit is assigned to one cell of
-a grid that is upsampled to the code resolution. We show that this layout makes the
-problem learnable at practical payload sizes; the global message-broadcast injection
-used by prior neural data-hiding methods stalls near chance. StegaQR supports three switchable embedding modes (per-channel,
-cross-channel, and a QR-anchored hybrid that leaves the structural modules
-untouched) and couples the learned channel with error-correction coding. Training
-the encoder and decoder end to end through a differentiable distortion layer yields
-robustness that transfers to physical capture. Across five seeds, distortion-trained
-models recover the full private message with 99 to 100 percent success under
-simulated degradation, and recover it from every one of ten real photographs of a
-displayed code, while the public payload remains 100 percent standard-decodable. We
-characterize the operating frontier between imperceptibility and robustness and
-report a classical baseline that fails under the same conditions.
+Quick Response (QR) codes expose one public payload to any reader. StegaQR adds a
+private bitstring through learned color perturbations while preserving the public
+payload for a conventional reader. Its spatial bit-grid assigns each coded bit to a
+cell that is upsampled to the symbol resolution. Under the same training budget, this
+layout reaches full recovery at 100 bits while global message broadcast remains near
+chance. Three embedding modes provide channel isolation, joint color placement, or
+exact protection of QR structural modules. Across five seeds, models trained through
+a stochastic photometric distortion proxy achieve 99.1 to 100 percent raw full-codeword
+recovery under that proxy. On 11 held-out, non-differentiable operators, including true
+JPEG and a combined resize, blur, brightness, noise, and JPEG pipeline, repetition-coded
+message recovery is 100 percent in all 256 trials per operator. The complete detector,
+rectifier, and neural decoder pipeline also recovers both payloads from all ten phone
+photographs in a physical pilot. We report the capacity and imperceptibility tradeoff,
+an architecture ablation, and a classical baseline.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -60,23 +63,24 @@ are actually consumed, which is by photographing them from paper or a screen.
 
 Two bodies of work come close, but each leaves a gap. Neural data-hiding methods learn
 an encoder and decoder jointly and can embed a bitstring that survives printing and
-re-photography~\cite{baluja2017hiding,zhu2018hidden,tancik2020stegastamp,bui2023rosteals}.
+re-photography~\cite{baluja2017hiding}, \cite{zhu2018hidden},
+\cite{tancik2020stegastamp}, \cite{bui2023rosteals}.
 They hide data inside natural photographs, however, so the recovered medium is the photo
 rather than a still-scannable code. Methods that hide data specifically inside QR codes
-do keep a public level readable, but they are classical: they substitute textured
-patterns or multiplex color channels by hand, and the high-capacity color variants need a
-dedicated decoder, so the composite code is no longer a standard
-QR~\cite{tkachenko2016twolevel,yang2018hiq,chu2013halftone}. None of the QR-specific
-methods is learned, and their robustness to the screen-to-camera channel is largely
-untested.
+manipulate modules, error-correction redundancy, segment choices, or color layers by
+hand~\cite{lin2016qr}, \cite{koptyra2024segmentation},
+\cite{tkachenko2016twolevel}, \cite{yang2018hiq}, \cite{chu2013halftone}. Several
+preserve a public payload for a standard reader, but none of
+the reviewed QR-specific methods trains an encoder and decoder jointly. Their evaluation
+also differs from the screen-to-camera pipeline considered here.
 
 We present StegaQR, a method that bridges these two lines. A convolutional encoder takes
 a standard QR code and a private bitstring and outputs a stego code that differs from the
 original only by a learned color perturbation. A convolutional decoder recovers the
 private bits from the stego code, while any conventional reader recovers the public
 payload unchanged. The encoder and decoder are trained end to end through a differentiable
-distortion layer that simulates the photometric and geometric corruptions of capture. This
-training is the source of the learned channel's robustness.
+layer that simulates photometric corruption, compression noise, and blur. A standard QR
+detector handles localization and perspective rectification before neural decoding.
 
 The design choice that makes this work at useful payload sizes is how the private bits
 enter the network. Prior neural hiders broadcast the message as a constant signal over
@@ -145,19 +149,19 @@ across the whole image and reading it back with global pooling, with no spatial
 correspondence between a bit and a location.
 
 \subsection{Data hiding inside QR codes}
-A separate line keeps the QR code itself as the carrier. The two-level QR code stores a
-public level identical to a standard QR, readable by any application, and a private level
-formed by replacing black modules with textured patterns that are recovered by pattern
-correlation and Reed-Solomon decoding~\cite{tkachenko2016twolevel}. High-capacity color
-QR codes such as HiQ superpose several monochrome codes into one color symbol, which
-raises capacity but needs a trained classifier to separate the channels, so the result is
-no longer a standard monochrome QR~\cite{yang2018hiq}. Halftone QR codes embed a visible
-image into the code by splitting each module into a three-by-three block and binding only
-the center submodule to the decoded value~\cite{chu2013halftone}. Anti-copying 2D barcodes
-embed authentication information in the print noise itself~\cite{xie2020lcac}. These
-methods preserve or extend QR functionality, but they are hand-designed rather than
-learned, and where capacity is highest the public readability is lost. Their behavior
-under the screen-to-camera channel is largely unreported.
+A separate line keeps the QR code itself as the carrier. Lin and Chen embed a private
+payload by exploiting QR redundancy while an ordinary scanner returns only the cover
+content~\cite{lin2016qr}. Koptyra and Ogiela choose nonoptimal data segments to encode a
+secret without consuming the QR error-correction budget; the resulting symbols remain
+valid under several readers and printed tests~\cite{koptyra2024segmentation}. The two-level
+QR code replaces black modules with textured patterns recovered by correlation and
+Reed-Solomon decoding~\cite{tkachenko2016twolevel}. HiQ superposes monochrome codes in
+color and uses a trained classifier to separate them, so the composite is not a standard
+monochrome QR~\cite{yang2018hiq}. Halftone QR binds the center of each submodule to the
+decoded value while using the remaining area for a visible image~\cite{chu2013halftone}.
+These methods establish that a QR symbol can carry private information, but their
+embedding rules are designed manually. StegaQR instead learns the visual perturbation
+and its decoder jointly against a degraded image channel.
 
 \subsection{Robustness to the physical channel}
 Robustness to printing and re-photography, and to the related screen-shooting channel in
@@ -176,35 +180,28 @@ decoder, like the neural image hiders, but its cover is a QR code that remains
 standard-decodable, like the classical QR methods. It lays the payload out spatially
 rather than broadcasting it, exposes switchable embedding modes including one that
 provably preserves the structural modules, and is validated on real screen-to-camera
-capture. The closest neighbors are StegaStamp, which is neural and physical but hides in
-natural images with a broadcast payload, and the two-level QR code, which keeps the public
-payload but is classical and untested on the capture channel we target.
+capture. The closest neural neighbor is StegaStamp, which is physical but uses natural-image
+covers. The closest QR neighbors are the classical redundancy, segmentation, and textured
+module schemes, which preserve a public payload without learning the embedding channel.
 Table~\ref{tab:related} summarizes these contrasts.
 
 \begin{table*}[t]
 \centering
-\caption{StegaQR against representative prior work. ``Public QR'' is whether a standard
-monochrome QR reader still decodes the public payload from the published artifact. Payload
-figures are as reported by each source: HiDDeN $52$ bits at $0.203$ bits per pixel;
-StegaStamp $56$ bits after BCH correction; 2LQR up to $20{,}000$ private bits in a
-version-40 symbol; HiQ up to $8{,}900$ bytes across three color layers. ``ML dec.'' marks a
-classical embedding read back by a trained classifier rather than a learned encoder and
-decoder pair. Dashes mark properties the source does not report; ``n/a'' marks the public-QR
-column for natural-image covers.}
+\caption{Comparison with representative neural hiding and QR-specific methods. Public QR
+indicates that a conventional monochrome reader still returns the public payload.}
 \label{tab:related}
 \begin{tabular}{llllllc}
 \toprule
 Method & Cover & Learned & Payload & Imperceptibility & Robustness validated & Public QR \\
 \midrule
-Baluja~\cite{baluja2017hiding}         & natural image & yes      & full RGB image                 & high               & none                         & n/a \\
 HiDDeN~\cite{zhu2018hidden}            & natural image & yes      & $52$ b ($0.203$ bpp)           & visually indist.   & simulated                    & n/a \\
 StegaStamp~\cite{tancik2020stegastamp} & natural photo & yes      & $56$ b (post-BCH)              & near-invisible     & print + photo                & n/a \\
-RoSteALS~\cite{bui2023rosteals}        & natural image & yes      & $100$ b                        & high               & simulated                    & n/a \\
+Lin/Chen~\cite{lin2016qr}              & QR            & no       & cover-dependent                & module changes     & digital                      & yes \\
 2LQR~\cite{tkachenko2016twolevel}      & QR            & no       & up to $20{,}000$ b             & visible (textured) & print-scan                   & yes \\
+Segmentation~\cite{koptyra2024segmentation} & QR        & no       & segment choices                & valid QR           & digital + print              & yes \\
 HiQ~\cite{yang2018hiq}                 & color QR      & ML dec.  & up to $8{,}900$ B              & overt color        & mobile capture               & no  \\
-Halftone QR~\cite{chu2013halftone}     & QR            & no       & visible image                  & overt              & ---                          & yes \\
 \midrule
-\textbf{StegaQR (ours)}                & QR            & yes      & $100$ b raw, $33$--$56$ b net  & $18$--$55$ dB (tunable) & simulated + screen-to-camera & yes \\
+\textbf{StegaQR (ours)}                & QR            & yes      & $100$ b raw, $33$ to $56$ b net & $18$ to $55$ dB & proxy + held-out + camera & yes \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -251,7 +248,8 @@ The bit map is the reason the task becomes learnable. A convolution is translati
 with shared weights, so a network that learns to write one cell has learned to write every
 cell, and likewise for reading. Embedding $L$ bits is then about as hard as embedding a
 few. This is the point of departure from the global broadcast used by prior neural
-hiders~\cite{zhu2018hidden,tancik2020stegastamp,bui2023rosteals}, which replicate the
+hiders~\cite{zhu2018hidden}, \cite{tancik2020stegastamp},
+\cite{bui2023rosteals}, which replicate the
 message uniformly over the image and read it back by global pooling; there the network
 must learn $L$ distinct global patterns, which does not scale to the payload sizes we need.
 Section~\ref{ssec:ablation} quantifies the gap. Figure~\ref{fig:bitgrid} shows the write
@@ -296,7 +294,7 @@ train and test mismatch.
 \centering
 \includegraphics[width=0.95\textwidth]{fig_architecture}
 \caption{Encoder and decoder. The encoder fuses the cover, the bit-grid map, and (hybrid
-only) the structural mask through grouped convolutions and emits a bounded, optionally
+only) the structural mask through convolutions with group normalization and emits a bounded, optionally
 masked perturbation added to the cover. The decoder reads the payload by pooling its
 activation map back to the bit-grid. Group normalization is used throughout.}
 \label{fig:arch}
@@ -325,11 +323,11 @@ in the decoder destabilized training without improving accuracy, so the hybrid d
 omits it; the convolutional decoder already absorbs photometric variation.
 
 \subsection{Distortion layer and training}
-\textbf{Distortion layer.} A differentiable distortion layer sits between the encoder and
-decoder during training and applies, each with a fixed probability, additive Gaussian
-noise, a JPEG-like quantization proxy, brightness scaling, per-channel color shift, and
-Gaussian blur. The decoder therefore learns to read bits from degraded stego images, and
-that ability carries over to physical capture.
+\textbf{Distortion layer.} A differentiable layer sits between the encoder and decoder
+during training. It applies additive Gaussian noise, a quality-conditioned additive proxy
+for compression error, brightness scaling, per-channel color shift, and Gaussian blur,
+each with a fixed probability. The proxy does not perform a discrete cosine transform.
+True JPEG and other non-differentiable operators are reserved for held-out evaluation.
 
 \textbf{Objective.} The loss combines a decoding term, an imperceptibility term, and a
 structural term:
@@ -340,16 +338,18 @@ structural term:
 $\mathcal{L}_{\text{dec}}$ is the binary cross-entropy between recovered and true coded
 bits. $\mathcal{L}_{\text{perc}}$ combines mean squared error with a penalty on the largest
 per-pixel deviation, keeping the perturbation small. $\mathcal{L}_{\text{struct}}$ is a
-hinge that keeps structural modules close to their cover values.
+hinge that keeps structural modules close to their cover values. The hybrid decoder also
+uses an auxiliary confidence loss with weight $\lambda_c=0.1$; it does not affect the
+payload logits used for the reported recovery metrics.
 
 \textbf{Curriculum.} Optimizing the decoding and imperceptibility terms together from
 scratch is unstable: the imperceptibility term can drive the perturbation to zero before
 the decoder has learned to read it. We therefore train decoding only for a short warmup,
 then ramp the imperceptibility and structural weights linearly to their targets. The
 networks are optimized with Adam at a base rate of $10^{-3}$ under cosine annealing with
-gradient clipping. We select the final checkpoint by its message recovery under distortion,
-breaking ties toward higher PSNR, which avoids both the trivial high-PSNR solution that
-fails under capture and an over-strong perturbation that is needlessly visible.
+gradient clipping. Checkpoint selection maximizes the sum of raw full-codeword recovery
+and bit accuracy under stochastic proxy distortion, with a small PSNR tie-break. This
+avoids both a high-PSNR solution that loses bits and an unnecessarily strong perturbation.
 
 \subsection{Error-correction coding}
 \label{ssec:ecc}
@@ -365,7 +365,8 @@ cost of capacity.
 \textbf{Data.} Training data is generated on the fly. Each sample is a version-4,
 level-M QR code rendered from a random alphanumeric public payload, paired with a random
 private message. No external dataset is used. Unless stated otherwise the payload is
-$L=100$ coded bits and the module size is $m=4$, giving a $132\times132$ cover.
+$L=100$ coded bits and the module size is $m=4$, giving a $132\times132$ cover. The
+segregated mode uses 99 bits so its payload divides evenly across three channels.
 
 \textbf{Training.} Each configuration is trained for five seeds. We train for 24 epochs
 with batch size 16, 1500 fresh samples per epoch, Adam at $10^{-3}$ with cosine
@@ -382,6 +383,11 @@ against the cover, and public decode rate, the fraction of stego images whose pu
 payload a standard reader (ZBar) decodes correctly. Rates are reported as mean and a 95
 percent confidence interval over the five seeds.
 
+\textbf{Held-out operators.} Proxy-distorted evaluation uses the stochastic layer used
+during training. We separately test true JPEG, PIL Gaussian blur, resize round trips,
+brightness changes, sensor noise, and a combined pipeline. These operators do not
+participate in gradient training.
+
 \textbf{Hardware.} All experiments run on a single 16~GB GPU.
 
 \section{Results}
@@ -391,20 +397,19 @@ Table~\ref{tab:modes} reports the three modes under both training regimes. Two p
 are consistent across seeds. First, the public payload is decoded by a standard reader in
 every condition, so the embedding never breaks the cover. Second, distortion training
 produces the robustness. Clean-trained models are near perfect on clean stego images but
-recover the full message from only about 10 to 14 percent of distorted images, whereas
-distortion-trained models recover it from 99 to 100 percent. Cross-channel and segregated
+recover the full codeword from only about 10 to 14 percent of proxy-distorted images,
+whereas distortion-trained models recover it from 99 to 100 percent. Cross-channel and segregated
 behave almost identically; the hybrid mode matches them at a slightly higher PSNR, because
 restricting the perturbation to data modules concentrates it where it is useful.
 
 \begin{table*}[t]
 \centering
-\caption{Channel modes, capacity 100 bits, five seeds (mean $\pm$ 95\% CI). FDR is the
-full-decode rate (all bits correct). PSNR/SSIM are stego vs. cover. Public decode is by a
-standard ZBar reader.}
+\caption{Channel modes with 99 bits for segregated and 100 bits otherwise, five seeds
+(mean $\pm$ 95\% CI). FDR requires every coded bit to be correct.}
 \label{tab:modes}
 \begin{tabular}{llcccccc}
 \toprule
-Mode & Training & Clean bit-acc & Clean FDR & Dist.\ bit-acc & Dist.\ FDR & PSNR (dB) & Public decode \\
+Mode & Training & Clean bit-acc & Clean FDR & Proxy bit-acc & Proxy FDR & PSNR (dB) & Public decode \\
 \midrule
 \multirow{2}{*}{Segregated}    & clean      & $100.0\pm0.0$ & $100.0\pm0.0$ & $65.5\pm5.7$  & $13.9\pm11.3$ & $63.5$ & $100.0$ \\
                                & distortion & $100.0\pm0.0$ & $99.8\pm0.3$  & $100.0\pm0.0$ & $99.1\pm0.8$  & $17.6$ & $100.0$ \\
@@ -463,7 +468,7 @@ exact full-message decode at large payloads benefits from error correction.
 
 \begin{table}[t]
 \centering
-\caption{Capacity scaling, cross-channel, distortion-trained.}
+\caption{Capacity scaling, cross-channel, trained and evaluated with proxy distortion.}
 \label{tab:capacity}
 \begin{tabular}{cccc}
 \toprule
@@ -487,7 +492,7 @@ accuracy into exact recovery.
 
 \begin{table}[t]
 \centering
-\caption{Message-decode rate under distortion (cross-channel, 100 embedded bits).}
+\caption{Message-decode rate under proxy distortion (cross-channel, 100 embedded bits).}
 \label{tab:ecc}
 \begin{tabular}{lccc}
 \toprule
@@ -504,18 +509,27 @@ Hamming(7,4)  & 56  & $0.57$ & $100.0\pm0.0$ \\
 \subsection{Classical baseline}
 A classical per-channel least-significant-bit scheme embeds the same payload with no
 training. It is perfect on clean images, at 100 percent full-decode and $78$~dB PSNR, but
-collapses under the distortion layer to $53.8$ percent bit accuracy and $3.9$ percent
+collapses under proxy distortion to $53.8$ percent bit accuracy and $3.9$ percent
 full-decode. The learned, distortion-trained channel closes this gap.
 
+\subsection{Held-out non-differentiable operators}
+We evaluate the released hybrid checkpoint on 256 fresh messages under each of 11
+operators that are not used for gradient training. Repetition-coded message recovery is
+100 percent for every operator. Raw full-codeword recovery is 100 percent for JPEG quality
+70, blur radius 1, and a 50 percent resize round trip. It remains 95.3 percent for JPEG
+quality 30 and blur radius 2, and 94.9 percent for the combined resize, blur, brightness,
+noise, and JPEG pipeline. Error correction removes every residual message error in this
+evaluation.
+
 \subsection{Real screen-to-camera capture}
-The simulated distortion layer is a stand-in for the physical channel, so we test on real
+The image-operator tests do not reproduce a complete camera channel, so we also test real
 captures. We displayed ten distinct stego codes from the distortion-trained hybrid model
 on a monitor and photographed them with a smartphone, free-hand, at varied angle and
-distance. Each photograph was localized and rectified with a standard detector, then
-decoded. The QR was located in all ten, the public payload decoded in all ten, and the
+distance. A standard OpenCV detector localized and rectified each photograph before the
+neural decoder received it. The QR was located in all ten, the public payload decoded in all ten, and the
 private message, protected by a rate-1/3 code, was recovered in all ten
-(Fig.~\ref{fig:capture}). The robustness learned against the simulated layer therefore
-transfers to genuine display, optics, and sensor distortions.
+(Fig.~\ref{fig:capture}). This result validates the complete detection and decoding
+pipeline; it does not claim that the neural decoder itself learns perspective invariance.
 
 \begin{figure*}[t]
 \centering
@@ -562,13 +576,13 @@ spatial bit-grid that gives each bit a location, which lets a single shared
 convolution learn the embedding at useful payload sizes where the global broadcast of prior
 neural hiders stalls at chance. Three switchable modes offer different balances of fault
 isolation, capacity, and structural preservation, and a QR-anchored hybrid leaves the
-structural modules provably untouched. Training end to end through a differentiable distortion layer, and coupling the
-channel with error correction, yields models that recover the full private message from 99
-to 100 percent of distorted images and from every one of ten real photographs of a
-displayed code, while a standard reader recovers the public payload in every case. The
-gains over a clean-trained model and a classical baseline are large, and the imperceptibility
-and robustness ends of the system are characterized as a single tunable frontier. Code and
-trained models will be released. Future work includes larger payloads, a broader physical
+structural modules provably untouched. Training end to end through a differentiable
+distortion proxy, and coupling the channel with error correction, yields 100 percent
+message recovery across 11 held-out image operators and every one of ten photographs in
+the physical pilot, while a standard reader recovers the public payload in every case.
+The gains over a clean-trained model and a classical baseline are large, and the
+imperceptibility and robustness ends of the system are characterized as a single tunable
+frontier. Code and a tested package are prepared for release. Future work includes larger payloads, a broader physical
 and cross-device study, coverage of more QR versions, and a steganalysis of both regimes.
 
 \bibliographystyle{IEEEtran}

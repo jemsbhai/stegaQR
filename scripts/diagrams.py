@@ -45,13 +45,13 @@ def make_system():
     ax.set_xlim(0, 180); ax.set_ylim(6, 66); ax.axis("off")
 
     # --- embed lane ---
-    box(ax, 12, 50, 20, 10, "Public payload\n“https://…”", C_EMBED, E_EMBED)
+    box(ax, 12, 50, 20, 10, "Public payload\nhttps://...", C_EMBED, E_EMBED)
     box(ax, 12, 28, 20, 10, "Hidden payload\n(bytes)", C_EMBED, E_EMBED)
     box(ax, 38, 50, 20, 10, "QR encoder\n(ISO/IEC 18004)", C_EMBED, E_EMBED)
     box(ax, 38, 28, 20, 10, "ECC encode\n(rep / Hamming)", C_EMBED, E_EMBED)
     box(ax, 63, 50, 18, 10, "Cover QR\n(RGB)", C_EMBED, E_EMBED)
     box(ax, 63, 28, 18, 10, "Spatial\nbit-grid", C_EMBED, E_EMBED)
-    box(ax, 88, 39, 20, 14, "Neural encoder\n(GroupNorm\nconv U-net)", C_EMBED, E_EMBED, bold=True)
+    box(ax, 88, 39, 20, 14, "Neural encoder\n(residual conv\nblocks)", C_EMBED, E_EMBED, bold=True)
     box(ax, 113, 39, 18, 12, "Stego QR\n(looks normal)", C_STEGO, E_STEGO, bold=True)
 
     for a, b in [((22, 50), (28, 50)), ((48, 50), (54, 50)), ((72, 50), (78, 47)),
@@ -60,7 +60,7 @@ def make_system():
         arrow(ax, a, b, E_EMBED)
 
     # --- channel + extract lane ---
-    box(ax, 113, 16, 24, 9, "Channel\nJPEG · print-scan · photo", C_CHAN, E_CHAN)
+    box(ax, 113, 16, 24, 9, "Channel\nJPEG, print-scan, photo", C_CHAN, E_CHAN)
     arrow(ax, (113, 33), (113, 20.5), E_CHAN)            # stego -> channel
     box(ax, 140, 16, 17, 9, "Localize +\nrectify (OpenCV)", C_EXTR, E_EXTR)
     arrow(ax, (125, 16), (131.5, 16), E_EXTR)
@@ -73,8 +73,8 @@ def make_system():
     # rectified symbol -> neural decoder
     arrow(ax, (140, 20.5), (140, 29.5), E_EXTR)
 
-    box(ax, 165, 52, 13, 9, "Public\npayload ✓", C_OUT, E_OUT)
-    box(ax, 165, 34, 13, 9, "Hidden\npayload ✓", C_EXTR, E_EXTR, bold=True)
+    box(ax, 165, 52, 13, 9, "Public\npayload", C_OUT, E_OUT)
+    box(ax, 165, 34, 13, 9, "Hidden\npayload", C_EXTR, E_EXTR, bold=True)
     arrow(ax, (148.5, 52), (158.5, 52), E_OUT)
     arrow(ax, (148.5, 34), (158.5, 34), E_EXTR)
 
@@ -102,15 +102,15 @@ def make_architecture():
 
     # ----- Encoder lane (top) -----
     ax.text(2, 66, "Encoder", fontsize=14, fontweight="bold", color=E_EMBED)
-    box(ax, 13, 60, 19, 7, "Cover RGB\n3×H×W", C_EMBED, E_EMBED, fs=10)
-    box(ax, 13, 51, 19, 7, "Bit-grid\n1×H×W", C_EMBED, E_EMBED, fs=10)
-    box(ax, 13, 42, 19, 7, "QR mask 1×H×W\n(hybrid only)", "#eef3f8", E_EMBED, fs=9, ls="--")
+    box(ax, 13, 60, 19, 7, "Cover RGB\n3 x H x W", C_EMBED, E_EMBED, fs=10)
+    box(ax, 13, 51, 19, 7, "Bit grid\n1 x H x W", C_EMBED, E_EMBED, fs=10)
+    box(ax, 13, 42, 19, 7, "QR mask 1 x H x W\n(hybrid only)", "#eef3f8", E_EMBED, fs=9, ls="--")
     box(ax, 35, 51, 11, 8, "concat", C_EMBED, E_EMBED, fs=10)
-    box(ax, 57, 51, 22, 11, "Conv × 5\n3×3 · GroupNorm · ReLU\n64 ch", C_EMBED, E_EMBED, fs=10, bold=True)
-    box(ax, 85, 51, 18, 10, "1×1 conv → 3\ntanh × ε", C_EMBED, E_EMBED, fs=10)
-    box(ax, 108, 51, 13, 9, "× mask\n(hybrid)", "#eef3f8", E_EMBED, fs=9, ls="--")
+    box(ax, 57, 51, 22, 13, "5 residual blocks\n3 x 3 conv\nGroupNorm, ReLU\n64 channels", C_EMBED, E_EMBED, fs=9.2, bold=True)
+    box(ax, 85, 51, 18, 10, "1 x 1 conv to RGB\ntanh, scaled by epsilon", C_EMBED, E_EMBED, fs=9.5)
+    box(ax, 108, 51, 13, 9, "apply mask\n(hybrid)", "#eef3f8", E_EMBED, fs=9, ls="--")
     box(ax, 128, 51, 14, 9, "+ cover\nclamp[0,1]", C_EMBED, E_EMBED, fs=10)
-    box(ax, 150, 51, 16, 10, "Stego QR\n3×H×W", C_STEGO, E_STEGO, fs=11, bold=True)
+    box(ax, 150, 51, 16, 10, "Stego QR\n3 x H x W", C_STEGO, E_STEGO, fs=11, bold=True)
     for a, b in [((22.5, 60), (29.5, 53)), ((22.5, 51), (29.5, 51)),
                  ((22.5, 42), (29.5, 49)), ((40.5, 51), (46, 51)),
                  ((68, 51), (76, 51)), ((94, 51), (101.5, 51)),
@@ -122,26 +122,26 @@ def make_architecture():
     # ----- Decoder lane (bottom) -----
     ax.text(2, 30, "Decoder", fontsize=14, fontweight="bold", color=E_EXTR)
     box(ax, 13, 22, 19, 9, "Stego QR\n(channel output)", C_STEGO, E_STEGO, fs=9.5)
-    box(ax, 39, 22, 20, 11, "Conv × 6\nGroupNorm", C_EXTR, E_EXTR, fs=10, bold=True)
-    box(ax, 66, 22, 18, 10, "1×1 conv → 1\nactivation map", C_EXTR, E_EXTR, fs=10)
-    box(ax, 90, 22, 17, 10, "avg-pool\n→ g×g grid", C_EXTR, E_EXTR, fs=10)
-    box(ax, 113, 22, 15, 9, "read cells\n→ L logits", C_EXTR, E_EXTR, fs=10)
+    box(ax, 39, 22, 20, 11, "6 residual blocks\nGroupNorm", C_EXTR, E_EXTR, fs=10, bold=True)
+    box(ax, 66, 22, 18, 10, "1 x 1 conv\nactivation map", C_EXTR, E_EXTR, fs=10)
+    box(ax, 90, 22, 17, 10, "average pool\nto g x g grid", C_EXTR, E_EXTR, fs=10)
+    box(ax, 113, 22, 15, 9, "read cells\nas L logits", C_EXTR, E_EXTR, fs=10)
     box(ax, 134, 22, 14, 9, "threshold\n+ ECC", C_EXTR, E_EXTR, fs=10)
-    box(ax, 156, 22, 15, 9, "Hidden\nbits ✓", C_EXTR, E_EXTR, fs=10.5, bold=True)
+    box(ax, 156, 22, 15, 9, "Hidden\nbits", C_EXTR, E_EXTR, fs=10.5, bold=True)
     for a, b in [((22.5, 22), (29, 22)), ((49, 22), (57, 22)), ((75, 22), (81.5, 22)),
                  ((98.5, 22), (104.5, 22)), ((120.5, 22), (127, 22)), ((141, 22), (148.5, 22))]:
         arrow(ax, a, b, E_EXTR, lw=1.6)
     # channel link encoder->decoder
     arrow(ax, (150, 46), (13, 27), "#b5453b", lw=1.4, style="-|>")
-    ax.text(80, 37.5, "channel  (JPEG · print-scan · photo)", ha="center", fontsize=9,
+    ax.text(80, 37.5, "channel (JPEG, print-scan, photo)", ha="center", fontsize=9,
             color=E_CHAN, style="italic")
 
     # ----- notes -----
-    ax.text(86, 11.5, "Spatial bit-grid: each of the L payload bits occupies one cell of a "
-            "⌈√L⌉×⌈√L⌉ grid upsampled to H×W; the decoder average-pools back to the grid "
+    ax.text(86, 11.5, "Spatial bit grid: each payload bit occupies one cell of a near-square grid "
+            "upsampled to H x W; the decoder average-pools back to the grid "
             "and reads each cell.", ha="center", fontsize=9, color="#33414b")
-    ax.text(86, 6.5, "Modes — segregated: 3 independent per-channel sub-networks · "
-            "cross-channel: joint RGB (shown) · hybrid: joint + structural mask + bits on data cells.",
+    ax.text(86, 6.5, "Modes: segregated uses 3 independent channel networks; "
+            "cross-channel uses joint RGB; hybrid adds a structural mask and data-cell placement.",
             ha="center", fontsize=9, color="#33414b")
     _save(fig, "fig_architecture")
 
@@ -178,8 +178,8 @@ def make_bitgrid():
     bg.text(0.015, 0.27, "DECODE\n(read)", fontsize=12, fontweight="bold", color=E_EXTR, va="center")
 
     # top (write): grid -> upsample -> stego
-    panel([0.10, 0.58, 0.18, 0.30], bits, f"payload → {g}×{g} grid\n(each cell = 1 bit)", "gray_r")
-    panel([0.37, 0.58, 0.18, 0.30], up, "upsample (nearest)\n→ bit-grid map  1×H×W", "gray_r", binary=False)
+    panel([0.10, 0.58, 0.18, 0.30], bits, f"payload in a {g} x {g} grid\n(each cell is 1 bit)", "gray_r")
+    panel([0.37, 0.58, 0.18, 0.30], up, "nearest-neighbor upsampling\nbit map, 1 x H x W", "gray_r", binary=False)
     # stego (real image) in the middle-right
     axs = fig.add_axes([0.66, 0.30, 0.26, 0.40])
     stego_path = FIG.parent / "capture" / "screen1" / "stego_000.png"
@@ -189,8 +189,8 @@ def make_bitgrid():
     axs.set_title("Stego QR\n(encoder embeds the map into the cover)", fontsize=10.5)
 
     # bottom (read): activation -> pool -> recovered grid
-    panel([0.37, 0.10, 0.18, 0.30], act, "decoder activation map\n1×H×W", "magma", binary=False)
-    panel([0.10, 0.10, 0.18, 0.30], rec, f"avg-pool → {g}×{g}\n→ read cells → bits", "gray_r")
+    panel([0.37, 0.10, 0.18, 0.30], act, "decoder activation map\n1 x H x W", "magma", binary=False)
+    panel([0.10, 0.10, 0.18, 0.30], rec, f"average pool to {g} x {g}\nread cells as bits", "gray_r")
 
     # arrows (figure fraction)
     A = lambda p, q, c: bg.annotate("", xy=q, xytext=p,
@@ -202,11 +202,9 @@ def make_bitgrid():
     A((0.365, 0.25), (0.285, 0.25), E_EXTR)         # activation -> pooled grid
     bg.text(0.70, 0.21, "channel + decoder conv", fontsize=8.5, color=E_CHAN, style="italic")
 
-    match = int((bits == rec).sum())
     bg.text(0.5, 0.025,
-            "A single weight-shared convolution writes/reads any cell, so L=100 bits are learned in "
-            "~250 steps (100% recovery). Global broadcast (each bit constant over all H×W) must "
-            f"disentangle L global patterns and fails at L=100 (~chance).   [demo: {match}/{g*g} cells recovered]",
+            "A shared convolution learns the same write and read operation at every cell. "
+            "At 100 bits the spatial layout reached full recovery, while global broadcast remained near chance.",
             ha="center", fontsize=9.2, color="#33414b")
     _save(fig, "fig_bitgrid")
 
@@ -241,26 +239,27 @@ def make_examples():
                          pub=ok, maxd=resid.max()))
 
     n = len(specs)
-    fig, axes = plt.subplots(2, n + 1, figsize=(3.3 * (n + 1), 7.0))
+    fig, axes = plt.subplots(2, n + 1, figsize=(3.3 * (n + 1), 7.7),
+                             gridspec_kw={"hspace": 0.20})
     # column 0: cover (top), legend text (bottom)
     axes[0, 0].imshow(cols[0]["cover"]); axes[0, 0].set_title("Cover QR\n(no hidden data)", fontsize=11)
     axes[1, 0].axis("off")
-    axes[1, 0].text(0.5, 0.5, "top: stego QR\n(public still scans)\n\nbottom: |stego − cover|\n"
+    axes[1, 0].text(0.5, 0.5, "top: stego QR\n(public still scans)\n\nbottom: absolute residual\n"
                     "normalized to show\nwhere bits are embedded",
                     ha="center", va="center", fontsize=9.5, color="#33414b")
     for j, c in enumerate(cols, start=1):
         axes[0, j].imshow(c["stego"])
-        pub = "public ✓" if c["pub"] else "public ✗"
-        axes[0, j].set_title(f"{c['label']}\nPSNR {c['psnr']:.1f} dB · SSIM {c['ssim']:.3f} · {pub}",
+        pub = "public OK" if c["pub"] else "public failed"
+        axes[0, j].set_title(f"{c['label']}\nPSNR {c['psnr']:.1f} dB, SSIM {c['ssim']:.3f}, {pub}",
                              fontsize=10)
         r = c["resid"] / (c["resid"].max() + 1e-9)
         axes[1, j].imshow(r)
-        axes[1, j].set_title(f"residual ×{1/(c['maxd']+1e-9):.0f}  (max Δ {c['maxd']:.2f})", fontsize=9.5)
+        axes[1, j].set_title(f"normalized residual, max change {c['maxd']:.2f}", fontsize=9.5)
     for ax in axes.ravel():
         ax.set_xticks([]); ax.set_yticks([])
-    fig.suptitle("Cover vs. stego across operating points — imperceptibility ↔ robustness trade-off",
+    fig.suptitle("Cover and stego images across the imperceptibility and robustness frontier",
                  fontsize=13, y=0.98)
-    fig.tight_layout(rect=[0, 0, 1, 0.96])
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
     _save(fig, "fig_examples")
 
 
@@ -291,46 +290,45 @@ def make_capture():
     gt = bits_to_bytes(np.array(item["message_bits"], np.uint8)) if item else b""
     match = hidden.rstrip(b"\x00") == gt.rstrip(b"\x00")
 
-    fig, axd = plt.subplot_mosaic("ABC\nDEE", figsize=(13, 7.6))
-    for key, ph in zip("ABC", photos[:3]):
-        im = ImageOps.exif_transpose(Image.open(ph).convert("RGB"))
-        axd[key].imshow(im); axd[key].set_xticks([]); axd[key].set_yticks([])
-        axd[key].set_title(ph.name, fontsize=8)
-    axd["A"].set_ylabel("raw phone photos", fontsize=11)
-    fig.text(0.5, 0.93, "EXP-002 — stego QR displayed on a monitor, photographed with a phone",
-             ha="center", fontsize=13, fontweight="bold")
+    fig = plt.figure(figsize=(13, 5.3))
+    grid = fig.add_gridspec(2, 4, height_ratios=(3.1, 1.0), hspace=0.34, wspace=0.22)
+    image_axes = [fig.add_subplot(grid[0, i]) for i in range(4)]
+    for i, (axis, photo) in enumerate(zip(image_axes[:3], photos[:3]), start=1):
+        im = ImageOps.exif_transpose(Image.open(photo).convert("RGB"))
+        axis.imshow(im)
+        axis.set_title(f"Phone photo {i}", fontsize=9.5)
+        axis.set_xticks([])
+        axis.set_yticks([])
+    image_axes[0].set_ylabel("raw captures", fontsize=10)
 
-    axd["D"].imshow(rect); axd["D"].set_xticks([]); axd["D"].set_yticks([])
-    axd["D"].set_title("OpenCV localize + perspective-rectify\n→ decoder input", fontsize=10)
+    image_axes[3].imshow(rect)
+    image_axes[3].set_title("Rectified decoder input", fontsize=9.5)
+    image_axes[3].set_xticks([])
+    image_axes[3].set_yticks([])
 
-    axd["E"].axis("off")
-    lines = [
-        ("Representative decode", "header"),
-        (f"public payload (pyzbar):   {public!r}", "ok"),
-        (f"hidden message (neural+ECC): {hidden.rstrip(chr(0).encode()).hex()}  "
-         f"{'✓ matches ground truth' if match else '✗'}", "ok" if match else "bad"),
-        (f"decoder confidence:        {meta.get('confidence', 0):.3f}", "plain"),
-        ("", "plain"),
-        ("Aggregate over all 10 photos", "header"),
-        ("QR located:            10 / 10", "ok"),
-        ("public decode (pyzbar): 10 / 10", "ok"),
-        ("hidden MESSAGE decode:  10 / 10", "ok"),
-        ("", "plain"),
-        ("100% recovery through a real display→camera channel", "note"),
-        ("(perspective · glare · moiré · JPEG · screen colour),", "note"),
-        ("from a model trained only on the simulated distortion layer.", "note"),
-    ]
-    colors = {"header": "#15202b", "ok": E_EXTR, "bad": E_CHAN, "plain": "#33414b", "note": "#5b6b73"}
-    y = 0.96
-    for txt, kind in lines:
-        if not txt:
-            y -= 0.045; continue
-        axd["E"].text(0.02, y, txt, fontsize=11 if kind == "header" else 10.2,
-                      fontweight="bold" if kind == "header" else "normal",
-                      style="italic" if kind == "note" else "normal",
-                      family="monospace" if kind in ("ok", "bad", "plain") else "sans-serif",
-                      color=colors[kind], transform=axd["E"].transAxes, va="top")
-        y -= 0.072 if kind == "header" else 0.066
+    summary = fig.add_subplot(grid[1, :])
+    summary.axis("off")
+    summary.text(0.00, 0.90, "Representative decode", fontsize=10.5, fontweight="bold")
+    summary.text(0.00, 0.55, f"public: {public!r}", fontsize=9.5, family="monospace", color=E_EXTR)
+    summary.text(0.00, 0.22,
+                 f"hidden: {hidden.rstrip(chr(0).encode()).hex()} ({'match' if match else 'mismatch'})",
+                 fontsize=9.5, family="monospace", color=E_EXTR if match else E_CHAN)
+
+    summary.text(0.34, 0.90, "All 10 photographs", fontsize=10.5, fontweight="bold")
+    summary.text(0.34, 0.55, "located 10/10, public 10/10, private 10/10",
+                 fontsize=9.5, family="monospace", color=E_EXTR)
+    summary.text(0.34, 0.22, f"representative confidence: {meta.get('confidence', 0):.3f}",
+                 fontsize=9.5, family="monospace", color="#33414b")
+
+    summary.text(0.69, 0.90, "Pipeline boundary", fontsize=10.5, fontweight="bold")
+    summary.text(0.69, 0.55, "OpenCV removes perspective before neural decoding.",
+                 fontsize=9.5, color="#5b6b73")
+    summary.text(0.69, 0.22, "The neural model handles the rectified photometric channel.",
+                 fontsize=9.5, color="#5b6b73")
+
+    fig.suptitle("Physical pilot: monitor display photographed with a phone",
+                 fontsize=13, y=0.98, fontweight="bold")
+    fig.subplots_adjust(top=0.88, bottom=0.04, left=0.04, right=0.98)
     _save(fig, "fig_capture")
 
 

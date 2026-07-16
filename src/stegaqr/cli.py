@@ -19,7 +19,7 @@ import numpy as np
 from PIL import Image
 
 
-DEFAULT_MODEL = "models/pretrained/stegaqr_default.pt"
+DEFAULT_MODEL = str(Path(__file__).resolve().parent / "assets" / "stegaqr_default.pt")
 
 
 def _add_common(p):
@@ -93,8 +93,7 @@ def main(argv=None):
     args = p.parse_args(argv)
     if not Path(args.model).exists():
         sys.exit(f"model not found: {args.model}\n"
-                 f"Pass --model PATH to a trained checkpoint (e.g. experiments/full/"
-                 f"main_hybrid_distort_s42/best_model.pt) or place one at {DEFAULT_MODEL}.")
+                 "Reinstall stegaQR to restore the bundled model, or pass --model PATH.")
     {"info": cmd_info, "encode": cmd_encode, "decode": cmd_decode}[args.cmd](args)
 
 

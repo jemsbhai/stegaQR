@@ -1,7 +1,6 @@
 """Tests for the public core API (encode/decode) and CLI plumbing."""
 
 import json
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -67,12 +66,10 @@ class TestCoreAPISmoke:
 
 @pytest.mark.slow
 def test_roundtrip_pretrained():
-    """Full hidden round-trip with the shipped model, if present."""
-    model = Path("models/pretrained/stegaqr_default.pt")
-    if not model.exists():
-        pytest.skip("no pretrained model available")
-    from stegaqr.core import encode_hidden, decode_hidden
-    img = encode_hidden("https://x.com", b"ID42", model=str(model), ecc="rep3", device="cpu")
-    public, hidden, _ = decode_hidden(img, model=str(model), ecc="rep3", device="cpu")
+    """Full hidden round-trip with the model bundled in the package."""
+    from stegaqr.core import default_model_path, encode_hidden, decode_hidden
+    assert default_model_path().is_file()
+    img = encode_hidden("https://x.com", b"ID42", ecc="rep3", device="cpu")
+    public, hidden, _ = decode_hidden(img, ecc="rep3", device="cpu")
     assert public == "https://x.com"
     assert hidden.rstrip(b"\x00") == b"ID42"

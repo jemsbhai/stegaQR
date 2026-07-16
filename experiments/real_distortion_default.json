@@ -1,0 +1,114 @@
+{
+  "config": {
+    "mode": "hybrid",
+    "capacity_bits": 100,
+    "ecc": "rep3",
+    "net_bits": 33,
+    "checkpoint": "E:\\data\\code\\codex\\stegaQR\\src\\stegaqr\\assets\\stegaqr_default.pt",
+    "n": 256,
+    "seed_eval": 1234,
+    "checkpoint_sha256": "bd373b48acfa1490ece7fb6eef5d90d9a17cbcf456d044a5549f521eb9a843a4",
+    "device_requested": "cuda"
+  },
+  "presets": {
+    "jpeg90": {
+      "bit_acc": 1.0,
+      "full_decode": 1.0,
+      "msg_decode": 1.0,
+      "msg_decode_ci": [
+        0.9852161435741286,
+        1.0
+      ]
+    },
+    "jpeg70": {
+      "bit_acc": 1.0,
+      "full_decode": 1.0,
+      "msg_decode": 1.0,
+      "msg_decode_ci": [
+        0.9852161435741286,
+        1.0
+      ]
+    },
+    "jpeg50": {
+      "bit_acc": 0.999921875,
+      "full_decode": 0.9921875,
+      "msg_decode": 1.0,
+      "msg_decode_ci": [
+        0.9852161435741286,
+        1.0
+      ]
+    },
+    "jpeg30": {
+      "bit_acc": 0.9994921875,
+      "full_decode": 0.953125,
+      "msg_decode": 1.0,
+      "msg_decode_ci": [
+        0.9852161435741286,
+        1.0
+      ]
+    },
+    "blur1": {
+      "bit_acc": 1.0,
+      "full_decode": 1.0,
+      "msg_decode": 1.0,
+      "msg_decode_ci": [
+        0.9852161435741286,
+        1.0
+      ]
+    },
+    "blur2": {
+      "bit_acc": 0.99953125,
+      "full_decode": 0.953125,
+      "msg_decode": 1.0,
+      "msg_decode_ci": [
+        0.9852161435741286,
+        1.0
+      ]
+    },
+    "resize50": {
+      "bit_acc": 1.0,
+      "full_decode": 1.0,
+      "msg_decode": 1.0,
+      "msg_decode_ci": [
+        0.9852161435741286,
+        1.0
+      ]
+    },
+    "bright80": {
+      "bit_acc": 1.0,
+      "full_decode": 1.0,
+      "msg_decode": 1.0,
+      "msg_decode_ci": [
+        0.9852161435741286,
+        1.0
+      ]
+    },
+    "bright120": {
+      "bit_acc": 0.9999609375,
+      "full_decode": 0.99609375,
+      "msg_decode": 1.0,
+      "msg_decode_ci": [
+        0.9852161435741286,
+        1.0
+      ]
+    },
+    "noise": {
+      "bit_acc": 1.0,
+      "full_decode": 1.0,
+      "msg_decode": 1.0,
+      "msg_decode_ci": [
+        0.9852161435741286,
+        1.0
+      ]
+    },
+    "combined": {
+      "bit_acc": 0.9994140625,
+      "full_decode": 0.94921875,
+      "msg_decode": 1.0,
+      "msg_decode_ci": [
+        0.9852161435741286,
+        1.0
+      ]
+    }
+  }
+}

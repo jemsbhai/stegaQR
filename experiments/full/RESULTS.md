@@ -47,3 +47,24 @@ Aggregated from per-run `results.json`. Values are mean +/- 95% CI across seeds.
 |---|---|---|---|---|---|
 | clean | 100.0% | 100.0% | 78.3 | 1.000 | 100.0% |
 | distorted | 53.8% | 3.9% | 29.6 | 0.985 | 100.0% |
+
+## 6. Held out non-differentiable operators
+
+Hybrid release checkpoint, repetition-3 coding, 33 net message bits, 256 fresh
+messages per operator. These operators were not used for gradient training.
+
+| operator | bit accuracy | raw full decode | message decode |
+|---|---:|---:|---:|
+| JPEG quality 90 | 100.00% | 100.00% | 100.00% |
+| JPEG quality 70 | 100.00% | 100.00% | 100.00% |
+| JPEG quality 50 | 99.99% | 99.22% | 100.00% |
+| JPEG quality 30 | 99.95% | 95.31% | 100.00% |
+| Gaussian blur radius 1 | 100.00% | 100.00% | 100.00% |
+| Gaussian blur radius 2 | 99.95% | 95.31% | 100.00% |
+| 50 percent resize round trip | 100.00% | 100.00% | 100.00% |
+| brightness 0.8 | 100.00% | 100.00% | 100.00% |
+| brightness 1.2 | 100.00% | 99.61% | 100.00% |
+| Gaussian noise | 100.00% | 100.00% | 100.00% |
+| combined resize, blur, brightness, noise, and JPEG | 99.94% | 94.92% | 100.00% |
+
+Full machine-readable results: `experiments/real_distortion_default.json`.

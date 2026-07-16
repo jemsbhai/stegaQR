@@ -32,9 +32,12 @@ desktop.ini
 *secrets*
 
 # Experiment outputs (large files)
-experiments/*/checkpoints/
-experiments/*/logs/
-experiments/*/best_model.pt
+experiments/**/checkpoints/
+experiments/**/logs/
+experiments/**/best_model.pt
+experiments/diag_*/
+experiments/exp_diag_*/
+experiments/exp_v3*/
 models/pretrained/*.pt
 models/pretrained/*.pth
 !models/pretrained/stegaqr_default.pt   # ship the default CLI model (~3MB)
@@ -74,3 +77,7 @@ paper/*.fls
 paper/*.fdb_latexmk
 paper/*.synctex.gz
 paper/main.pdf
+!paper/main.pdf
+
+# Local review and generated artifacts
+tmp/

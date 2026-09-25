@@ -11,6 +11,11 @@ A standard QR reader decodes `public` normally; only the StegaQR decoder recover
 `hidden`. The hidden payload is protected by an error-correcting code (ECC), so the
 usable hidden capacity is smaller than the model's raw bit capacity (see
 `StegaQREncoder.max_hidden_bytes`).
+
+Placement. Coded bits are assigned to grid cells by a placement (see
+stegaqr.coding.placement_permutation). Since 0.2.0 the default is "interleaved";
+codes produced with 0.1.0 used "native" and are read back with placement="native".
+Encoder and decoder must use the same placement and placement_seed.
 """
 
 from __future__ import annotations
@@ -23,7 +28,10 @@ import numpy as np
 import torch
 from PIL import Image
 
-from stegaqr.coding import get_ecc, bits_to_bytes, bytes_to_bits
+from stegaqr.coding import (
+    DEFAULT_PLACEMENT, DEFAULT_PLACEMENT_SEED, bits_to_bytes, bytes_to_bits,
+    gather_coded_logits, get_ecc, place_coded_bits, placement_permutation,
+)
 from stegaqr.evaluation import build_models
 from stegaqr.utils.qr_utils import generate_cover_qr_rgb, get_qr_structure_mask
 
@@ -71,10 +79,16 @@ class StegaQREncoder:
         Error-correcting code: 'rep3' | 'rep5' | 'hamming74' | 'none'.
     device : str
         'cuda' or 'cpu' (falls back to CPU if CUDA unavailable).
+    placement : str
+        'interleaved' (default since 0.2.0) or 'native' (0.1.0 behaviour). Grid cell
+        assignment of the coded bits; the decoder must use the same value.
+    placement_seed : int
+        Seed of the interleaved permutation (default 0).
     """
 
     def __init__(
-        self, model: str | Path | None = None, ecc: str = "rep3", device: str = "cuda"
+        self, model: str | Path | None = None, ecc: str = "rep3", device: str = "cuda",
+        placement: str = DEFAULT_PLACEMENT, placement_seed: int = DEFAULT_PLACEMENT_SEED,
     ) -> None:
         self.device = device if torch.cuda.is_available() else "cpu"
         self.model_path = Path(model) if model is not None else default_model_path()
@@ -82,6 +96,9 @@ class StegaQREncoder:
         self.ecc = get_ecc(ecc)
         self.capacity = self.cfg["capacity_bits"]
         self._k = self.ecc.message_len(self.capacity)  # usable message bits
+        self.placement = placement
+        self.placement_seed = int(placement_seed)
+        self._pos = placement_permutation(self.capacity, placement, placement_seed)
 
     @property
     def max_hidden_bytes(self) -> int:
@@ -103,15 +120,14 @@ class StegaQREncoder:
 
         cover, _ = generate_cover_qr_rgb(
             public_payload, cfg["qr_version"], cfg["ec_level"], cfg["module_size"])
-        # message bytes -> bits -> ECC codeword -> pad to capacity
+        # message bytes -> bits -> ECC codeword -> placed on the grid, zero elsewhere
         msg_bits = bytes_to_bits(hidden_payload, n_bits=self._k)
         if len(msg_bits) < self._k:
             msg_bits = np.concatenate([msg_bits, np.zeros(self._k - len(msg_bits), np.uint8)])
-        coded = np.zeros(self.capacity, dtype=np.float32)
-        coded[: self.ecc.coded_len(self._k)] = self.ecc.encode(msg_bits)
+        payload = place_coded_bits(self.ecc.encode(msg_bits), self.capacity, self._pos)
 
         c = torch.from_numpy(cover).permute(2, 0, 1).unsqueeze(0).to(self.device)
-        p = torch.from_numpy(coded).unsqueeze(0).to(self.device)
+        p = torch.from_numpy(payload).unsqueeze(0).to(self.device)
         with torch.no_grad():
             if self.is_hybrid:
                 mask = torch.from_numpy(
@@ -131,10 +147,13 @@ class StegaQRDecoder:
     this class targets clean digital images and resizes to the model resolution.
 
     The bundled model is used unless ``model`` points to another checkpoint.
+    ``placement`` and ``placement_seed`` must match the encoder that produced the
+    image ('native' for images made with 0.1.0).
     """
 
     def __init__(
-        self, model: str | Path | None = None, ecc: str = "rep3", device: str = "cuda"
+        self, model: str | Path | None = None, ecc: str = "rep3", device: str = "cuda",
+        placement: str = DEFAULT_PLACEMENT, placement_seed: int = DEFAULT_PLACEMENT_SEED,
     ) -> None:
         self.device = device if torch.cuda.is_available() else "cpu"
         self.model_path = Path(model) if model is not None else default_model_path()
@@ -142,6 +161,9 @@ class StegaQRDecoder:
         self.ecc = get_ecc(ecc)
         self.capacity = self.cfg["capacity_bits"]
         self._k = self.ecc.message_len(self.capacity)
+        self.placement = placement
+        self.placement_seed = int(placement_seed)
+        self._pos = placement_permutation(self.capacity, placement, placement_seed)
 
     @staticmethod
     def _rectify(img: Image.Image, sym: int) -> Image.Image:
@@ -189,20 +211,27 @@ class StegaQRDecoder:
             out = self.decoder(t)
             logits = (out[0] if isinstance(out, tuple) else out).cpu().numpy()[0]
             conf = float(torch.sigmoid(out[1]).mean()) if isinstance(out, tuple) else None
-        msg_bits = self.ecc.decode(logits[: self.ecc.coded_len(self._k)])
+        coded_logits = gather_coded_logits(logits, self.ecc.coded_len(self._k), self._pos)
+        msg_bits = self.ecc.decode(coded_logits)
         hidden = bits_to_bytes(msg_bits)
         meta = {"mode": cfg["mode"], "capacity_bits": self.capacity, "ecc": self.ecc.name,
-                "message_bits": int(self._k), "confidence": conf}
+                "message_bits": int(self._k), "placement": self.placement,
+                "placement_seed": self.placement_seed, "confidence": conf}
         return public, hidden, meta
 
 
 def encode_hidden(public_payload: str, hidden_payload: bytes, *, model: str | Path | None = None,
-                  ecc: str = "rep3", device: str = "cuda") -> Image.Image:
+                  ecc: str = "rep3", device: str = "cuda", placement: str = DEFAULT_PLACEMENT,
+                  placement_seed: int = DEFAULT_PLACEMENT_SEED) -> Image.Image:
     """One-shot encode. See StegaQREncoder."""
-    return StegaQREncoder(model, ecc=ecc, device=device).encode(public_payload, hidden_payload)
+    return StegaQREncoder(model, ecc=ecc, device=device, placement=placement,
+                          placement_seed=placement_seed).encode(public_payload, hidden_payload)
 
 
 def decode_hidden(image: Image.Image, *, model: str | Path | None = None, ecc: str = "rep3",
-                  device: str = "cuda") -> tuple[Optional[str], Optional[bytes], dict]:
+                  device: str = "cuda", placement: str = DEFAULT_PLACEMENT,
+                  placement_seed: int = DEFAULT_PLACEMENT_SEED,
+                  ) -> tuple[Optional[str], Optional[bytes], dict]:
     """One-shot decode. See StegaQRDecoder."""
-    return StegaQRDecoder(model, ecc=ecc, device=device).decode(image)
+    return StegaQRDecoder(model, ecc=ecc, device=device, placement=placement,
+                          placement_seed=placement_seed).decode(image)

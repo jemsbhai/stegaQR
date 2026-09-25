@@ -1,0 +1,342 @@
+{
+  "config": {
+    "mode": "cross_channel",
+    "capacity_bits": 100,
+    "module_size": 4,
+    "seed_train": 2024,
+    "checkpoint": "E:\\data\\code\\claudecode\\mQRstego\\experiments\\full\\main_cross_channel_distort_s2024\\best_model.pt",
+    "n": 1024,
+    "seed_eval": 1234,
+    "interleave_seed": 0,
+    "perm": [
+      82,
+      36,
+      20,
+      5,
+      93,
+      16,
+      94,
+      52,
+      72,
+      90,
+      83,
+      13,
+      81,
+      37,
+      11,
+      10,
+      75,
+      8,
+      27,
+      9,
+      97,
+      23,
+      22,
+      19,
+      50,
+      98,
+      85,
+      44,
+      71,
+      4,
+      25,
+      70,
+      34,
+      39,
+      64,
+      57,
+      65,
+      42,
+      66,
+      15,
+      30,
+      2,
+      35,
+      86,
+      43,
+      17,
+      74,
+      28,
+      87,
+      18,
+      80,
+      3,
+      1,
+      55,
+      53,
+      24,
+      68,
+      21,
+      47,
+      0,
+      60,
+      6,
+      62,
+      67,
+      45,
+      84,
+      26,
+      51,
+      49,
+      91,
+      92,
+      99,
+      40,
+      61,
+      12,
+      32,
+      96,
+      46,
+      58,
+      14,
+      73,
+      38,
+      88,
+      31,
+      89,
+      48,
+      77,
+      76,
+      7,
+      63,
+      69,
+      78,
+      59,
+      54,
+      29,
+      41,
+      56,
+      33,
+      79,
+      95
+    ],
+    "epoch": null
+  },
+  "codes": {
+    "none": {
+      "net_bits": 100,
+      "rate": 1.0,
+      "coded_bits": 100,
+      "native": {
+        "raw_bit_acc": 0.999951171875,
+        "raw_full_decode": 0.9951171875,
+        "msg_bit_acc": 0.999951171875,
+        "msg_decode": 0.9951171875,
+        "msg_decode_ci": [
+          0.9886208640204845,
+          0.9979126050258262
+        ],
+        "failed_messages": 5
+      }
+    },
+    "rep2": {
+      "net_bits": 50,
+      "rate": 0.5,
+      "coded_bits": 100,
+      "native": {
+        "raw_bit_acc": 0.999736328125,
+        "raw_full_decode": 0.978515625,
+        "msg_bit_acc": 0.99978515625,
+        "msg_decode": 0.9892578125,
+        "msg_decode_ci": [
+          0.980867229044482,
+          0.9939912877054227
+        ],
+        "failed_messages": 11,
+        "copy_error_rate": 0.000263671875,
+        "msg_bit_error_rate": 0.00021484375,
+        "independent_majority_error_reference": 6.952285766601563e-08,
+        "mean_wrong_copies_among_failed_bits": 1.4545454545454546,
+        "geometry": {
+          "mean_distinct_cols_per_bit": 1.0,
+          "mean_distinct_rows_per_bit": 2.0,
+          "mean_pairwise_chebyshev_cells": 5.0
+        }
+      },
+      "interleaved": {
+        "raw_bit_acc": 0.99978515625,
+        "raw_full_decode": 0.9814453125,
+        "msg_bit_acc": 1.0,
+        "msg_decode": 1.0,
+        "msg_decode_ci": [
+          0.9962625959599825,
+          1.0
+        ],
+        "failed_messages": 0,
+        "copy_error_rate": 0.00021484375,
+        "msg_bit_error_rate": 0.0,
+        "independent_majority_error_reference": 4.61578369140625e-08,
+        "mean_wrong_copies_among_failed_bits": 0.0,
+        "geometry": {
+          "mean_distinct_cols_per_bit": 1.9,
+          "mean_distinct_rows_per_bit": 1.92,
+          "mean_pairwise_chebyshev_cells": 4.56
+        }
+      }
+    },
+    "rep3": {
+      "net_bits": 33,
+      "rate": 0.3333333333333333,
+      "coded_bits": 99,
+      "native": {
+        "raw_bit_acc": 0.9994969223484849,
+        "raw_full_decode": 0.97265625,
+        "msg_bit_acc": 0.9996448863636364,
+        "msg_decode": 0.990234375,
+        "msg_decode_ci": [
+          0.9821173774373615,
+          0.9946869646952776
+        ],
+        "failed_messages": 10,
+        "copy_error_rate": 0.0005030776515151515,
+        "msg_bit_error_rate": 0.0003551136363636364,
+        "independent_majority_error_reference": 7.590067254106086e-07,
+        "mean_wrong_copies_among_failed_bits": 2.25,
+        "geometry": {
+          "mean_distinct_cols_per_bit": 3.0,
+          "mean_distinct_rows_per_bit": 3.0,
+          "mean_pairwise_chebyshev_cells": 4.90909090909091
+        }
+      },
+      "interleaved": {
+        "raw_bit_acc": 0.9993390940656566,
+        "raw_full_decode": 0.9560546875,
+        "msg_bit_acc": 1.0,
+        "msg_decode": 1.0,
+        "msg_decode_ci": [
+          0.9962625959599825,
+          1.0
+        ],
+        "failed_messages": 0,
+        "copy_error_rate": 0.0006609059343434344,
+        "msg_bit_error_rate": 0.0,
+        "independent_majority_error_reference": 1.3098125991495773e-06,
+        "mean_wrong_copies_among_failed_bits": 0.0,
+        "geometry": {
+          "mean_distinct_cols_per_bit": 2.5757575757575757,
+          "mean_distinct_rows_per_bit": 2.787878787878788,
+          "mean_pairwise_chebyshev_cells": 4.757575757575758
+        }
+      }
+    },
+    "rep4": {
+      "net_bits": 25,
+      "rate": 0.25,
+      "coded_bits": 100,
+      "native": {
+        "raw_bit_acc": 0.999208984375,
+        "raw_full_decode": 0.9658203125,
+        "msg_bit_acc": 0.999375,
+        "msg_decode": 0.9873046875,
+        "msg_decode_ci": [
+          0.9784009108980881,
+          0.9925659550863478
+        ],
+        "failed_messages": 13,
+        "copy_error_rate": 0.000791015625,
+        "msg_bit_error_rate": 0.000625,
+        "independent_majority_error_reference": 1.9785974785645527e-09,
+        "mean_wrong_copies_among_failed_bits": 2.75,
+        "geometry": {
+          "mean_distinct_cols_per_bit": 2.0,
+          "mean_distinct_rows_per_bit": 4.0,
+          "mean_pairwise_chebyshev_cells": 5.4
+        }
+      },
+      "interleaved": {
+        "raw_bit_acc": 0.998916015625,
+        "raw_full_decode": 0.939453125,
+        "msg_bit_acc": 1.0,
+        "msg_decode": 1.0,
+        "msg_decode_ci": [
+          0.9962625959599825,
+          1.0
+        ],
+        "failed_messages": 0,
+        "copy_error_rate": 0.001083984375,
+        "msg_bit_error_rate": 0.0,
+        "independent_majority_error_reference": 5.090680465191327e-09,
+        "mean_wrong_copies_among_failed_bits": 0.0,
+        "geometry": {
+          "mean_distinct_cols_per_bit": 3.4,
+          "mean_distinct_rows_per_bit": 3.52,
+          "mean_pairwise_chebyshev_cells": 4.986666666666666
+        }
+      }
+    },
+    "rep5": {
+      "net_bits": 20,
+      "rate": 0.2,
+      "coded_bits": 100,
+      "native": {
+        "raw_bit_acc": 0.996396484375,
+        "raw_full_decode": 0.90625,
+        "msg_bit_acc": 0.9970703125,
+        "msg_decode": 0.95703125,
+        "msg_decode_ci": [
+          0.9428087957227077,
+          0.9678374833969637
+        ],
+        "failed_messages": 44,
+        "copy_error_rate": 0.003603515625,
+        "msg_bit_error_rate": 0.0029296875,
+        "independent_majority_error_reference": 4.6540257606763013e-07,
+        "mean_wrong_copies_among_failed_bits": 4.033333333333333,
+        "geometry": {
+          "mean_distinct_cols_per_bit": 1.0,
+          "mean_distinct_rows_per_bit": 5.0,
+          "mean_pairwise_chebyshev_cells": 4.0
+        }
+      },
+      "interleaved": {
+        "raw_bit_acc": 0.998056640625,
+        "raw_full_decode": 0.8974609375,
+        "msg_bit_acc": 1.0,
+        "msg_decode": 1.0,
+        "msg_decode_ci": [
+          0.9962625959599825,
+          1.0
+        ],
+        "failed_messages": 0,
+        "copy_error_rate": 0.001943359375,
+        "msg_bit_error_rate": 0.0,
+        "independent_majority_error_reference": 7.318001802467845e-08,
+        "mean_wrong_copies_among_failed_bits": 0.0,
+        "geometry": {
+          "mean_distinct_cols_per_bit": 4.35,
+          "mean_distinct_rows_per_bit": 4.1,
+          "mean_pairwise_chebyshev_cells": 4.540000000000001
+        }
+      }
+    },
+    "hamming74": {
+      "net_bits": 56,
+      "rate": 0.5714285714285714,
+      "coded_bits": 98,
+      "native": {
+        "raw_bit_acc": 0.9999900350765306,
+        "raw_full_decode": 0.9990234375,
+        "msg_bit_acc": 1.0,
+        "msg_decode": 1.0,
+        "msg_decode_ci": [
+          0.9962625959599825,
+          1.0
+        ],
+        "failed_messages": 0
+      },
+      "interleaved": {
+        "raw_bit_acc": 0.9999601403061225,
+        "raw_full_decode": 0.99609375,
+        "msg_bit_acc": 1.0,
+        "msg_decode": 1.0,
+        "msg_decode_ci": [
+          0.9962625959599825,
+          1.0
+        ],
+        "failed_messages": 0
+      }
+    }
+  },
+  "tag": "main_cross_channel_distort_s2024",
+  "eval_seconds": 30.8
+}

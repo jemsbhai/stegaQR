@@ -40,6 +40,11 @@ stegaqr decode --image stego.png
 The generated image includes a quiet zone and nearest neighbor upscaling for reliable
 scanning. Use `--model PATH` to select a different trained checkpoint.
 
+Since 0.2.0 the coded bits are spread over the bit grid by a fixed permutation
+(`--placement interleaved`, the default). Images produced with 0.1.0 placed coded bit
+`c` on grid cell `c`; decode them with `--placement native`. Encoder and decoder must
+use the same placement.
+
 ## Python API
 
 ```python
@@ -53,6 +58,19 @@ assert hidden.rstrip(b"\x00") == b"ID42"
 ```
 
 CUDA is used when requested and available. Otherwise the package falls back to CPU.
+
+Both functions accept `placement="interleaved"` (default) or `placement="native"`
+(0.1.0 layout), and `placement_seed` for the interleaved permutation.
+
+## Placement of the error-correction copies
+
+The repetition code tiles its copies, so copy `r` of message bit `j` is coded bit
+`r*k + j`. With the 0.1.0 native placement on the bundled model's grid, all copies of
+a message bit under Repetition-5 shared one grid column and failed together under
+distortion. `scripts/eval_ecc_layout.py` measures both placements on the same
+checkpoints, covers, messages, and distortion draws; on five cross-channel models and
+1,024 messages each, interleaving removed every repetition-code message failure. See
+[`experiments/ecc_layout/RESULTS.md`](experiments/ecc_layout/RESULTS.md).
 
 ## Embedding modes
 

@@ -9,6 +9,10 @@ Usage:
     python scripts/decode_from_photo.py --photos capture/exp1_photos --manifest capture/exp1/manifest.json
     # quick self-test (no camera): synthesise "photos" via warp+JPEG from the exports
     python scripts/decode_from_photo.py --self-test --manifest capture/exp1/manifest.json --exports capture/exp1
+
+The grid placement of the coded bits is taken from the manifest (written by
+export_for_capture.py since 0.2.0); manifests without the key are read as native,
+which is how every export before 0.2.0 was produced. --placement overrides.
 """
 
 from __future__ import annotations
@@ -25,7 +29,7 @@ import torch
 import cv2
 from PIL import Image
 
-from stegaqr.coding import get_ecc
+from stegaqr.coding import PLACEMENTS, get_ecc, placement_permutation
 from stegaqr.evaluation import build_models
 
 
@@ -77,6 +81,8 @@ def main():
     p.add_argument("--photos", help="dir of photos to decode")
     p.add_argument("--exports", help="export dir (for --self-test)")
     p.add_argument("--checkpoint", default=None)
+    p.add_argument("--placement", default=None, choices=PLACEMENTS,
+                   help="override the manifest placement (pre-0.2.0 manifests: native)")
     p.add_argument("--self-test", action="store_true")
     p.add_argument("--device", default="cuda")
     args = p.parse_args()
@@ -86,12 +92,19 @@ def main():
     dec, is_hybrid, cfg = load_model(manifest, device, args.checkpoint)
     ecc = get_ecc(manifest["ecc"])
     cap = manifest["capacity_bits"]; clen = ecc.coded_len(ecc.message_len(cap))
+    placement = args.placement or manifest.get("placement", "native")
+    pos = placement_permutation(cap, placement, manifest.get("placement_seed", 0))
+    print(f"placement: {placement}")
     module_count = 4 * manifest["qr_version"] + 17
     sym = module_count * manifest["module_size"]  # bare-symbol pixel size
 
     from pyzbar.pyzbar import decode as zbar
     from PIL import ImageOps
     by_text = {it["public_text"]: it for it in manifest["items"]}
+
+    def hidden_ok(logits, item):
+        return np.array_equal(ecc.decode(logits[pos[:clen]]),
+                              np.array(item["message_bits"], dtype=np.uint8))
 
     def score_bgr(bgr, item):
         """Rectify + decode one image against a known manifest item; returns flags."""
@@ -103,9 +116,7 @@ def main():
         t = torch.from_numpy(rgb).permute(2, 0, 1).unsqueeze(0).float().to(device)
         with torch.no_grad():
             logits = (dec(t)[0] if is_hybrid else dec(t)).cpu().numpy()[0]
-        msg_ok = np.array_equal(ecc.decode(logits[:clen]),
-                                np.array(item["message_bits"], dtype=np.uint8))
-        return True, pub_ok, msg_ok
+        return True, pub_ok, hidden_ok(logits, item)
 
     n_loc = n_pub = n_msg = total = 0
 
@@ -143,8 +154,7 @@ def main():
             t = torch.from_numpy(rect).permute(2, 0, 1).unsqueeze(0).float().to(device)
             with torch.no_grad():
                 logits = (dec(t)[0] if is_hybrid else dec(t)).cpu().numpy()[0]
-            msg_ok = np.array_equal(ecc.decode(logits[:clen]),
-                                    np.array(item["message_bits"], dtype=np.uint8))
+            msg_ok = hidden_ok(logits, item)
             n_msg += msg_ok
             print(f"  {fp.name}: public={pub_text!r}  hidden={'OK' if msg_ok else 'FAIL'}")
 

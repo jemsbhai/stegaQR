@@ -1,4 +1,4 @@
-"""Error-correction coding (ECC) for the hidden payload.
+"""Error-correction coding (ECC) and grid placement for the hidden payload.
 
 The neural decoder recovers individual bits with high but imperfect accuracy
 (~98-99% under distortion at high PSNR). A full message needs ALL bits correct, so
@@ -15,11 +15,61 @@ k < embedded capacity n.
 The neural decoder emits per-bit LOGITS (sign = bit, magnitude = confidence), so
 we use SOFT-decision decoding -- combining log-likelihoods -- which is substantially
 stronger than hard-decision (majority) decoding. Convention: logit > 0 => bit 1.
+
+Placement (0.2.0). Coded bit c must also be assigned to a cell of the spatial
+bit-grid. The 0.1.0 release placed coded bit c on cell c ("native"). Because the
+repetition encoder tiles its copies (copy r of message bit j is coded bit r*k + j)
+and the grid fills row by row, native placement puts all copies of a bit in ONE grid
+column for k = 20 on the 10 x 10 grid, and the copies then fail together under
+distortion (paper, Section V-E; scripts/eval_ecc_layout.py). The "interleaved"
+placement sends coded bit c to cell perm[c] for a fixed pseudo-random permutation
+shared by encoder and decoder, which spreads the copies over the grid and removed
+every repetition-code message failure in that study. Interleaved is the default from
+0.2.0; pass placement="native" to read codes produced by 0.1.0.
 """
 
 from __future__ import annotations
 
 import numpy as np
+
+PLACEMENTS = ("interleaved", "native")
+DEFAULT_PLACEMENT = "interleaved"
+DEFAULT_PLACEMENT_SEED = 0
+
+
+def placement_permutation(capacity: int, placement: str = DEFAULT_PLACEMENT,
+                          seed: int = DEFAULT_PLACEMENT_SEED) -> np.ndarray:
+    """Return pos with pos[c] = grid cell holding coded bit c (length `capacity`).
+
+    'native' is the identity (0.1.0 behaviour). 'interleaved' is a fixed
+    pseudo-random permutation of the cells drawn from numpy's default_rng(seed),
+    so encoder and decoder agree as long as they share capacity, placement, and seed.
+    The same construction is used by scripts/eval_ecc_layout.py.
+    """
+    if capacity < 1:
+        raise ValueError("capacity must be >= 1")
+    if placement == "native":
+        return np.arange(capacity)
+    if placement == "interleaved":
+        return np.random.default_rng(int(seed)).permutation(capacity)
+    raise ValueError(f"unknown placement {placement!r}; expected one of {PLACEMENTS}")
+
+
+def place_coded_bits(coded: np.ndarray, capacity: int, pos: np.ndarray,
+                     dtype=np.float32) -> np.ndarray:
+    """Scatter a coded bit vector into a capacity-length payload at positions pos[:len(coded)].
+    Cells that carry no coded bit are zero."""
+    coded = np.asarray(coded).ravel()
+    if coded.size > capacity:
+        raise ValueError(f"{coded.size} coded bits exceed capacity {capacity}")
+    payload = np.zeros(capacity, dtype=dtype)
+    payload[pos[: coded.size]] = coded
+    return payload
+
+
+def gather_coded_logits(logits: np.ndarray, coded_len: int, pos: np.ndarray) -> np.ndarray:
+    """Inverse of place_coded_bits: read the coded_len logits back in coded order."""
+    return np.asarray(logits).ravel()[pos[:coded_len]]
 
 
 def bits_to_bytes(bits: np.ndarray) -> bytes:
@@ -60,10 +110,11 @@ class IdentityECC:
 class RepetitionECC:
     """Rate-1/m repetition code with soft-decision (log-likelihood) combining.
 
-    Each message bit is embedded m times. Copies are interleaved (placed k
-    positions apart) so a spatial burst in the embedding grid corrupts different
-    message bits rather than all copies of one bit. Soft decoding sums the m
-    per-copy logits -- the optimal combiner for repetition over independent
+    Each message bit is embedded m times. Copies are tiled (copy r of bit j at coded
+    index r*k + j). Where the copies land on the spatial grid is decided separately by
+    the placement (see placement_permutation); with native placement and k a multiple
+    of the grid width, all copies of a bit share one grid column. Soft decoding sums
+    the m per-copy logits -- the optimal combiner for repetition over independent
     channels -- before thresholding.
 
     Parameters

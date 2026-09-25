@@ -6,6 +6,12 @@ and -- via the ECC layer -- message-level decode rate. Both clean and under the
 stochastic distortion layer.
 
 Used by scripts/evaluate.py (CLI) and scripts/run_experiments.py (matrix runner).
+
+Placement of the ECC codeword on the grid is selectable (see
+stegaqr.coding.placement_permutation). The harness default stays "native" so that
+results.json files written before 0.2.0 (experiments/full) remain comparable; the
+package API and CLI default to "interleaved". scripts/eval_ecc_layout.py measures
+both placements on the same checkpoints.
 """
 
 from __future__ import annotations
@@ -23,7 +29,7 @@ from stegaqr.utils.metrics import (
     bit_accuracy, full_decode_rate, psnr, ssim, qr_public_decode_rate,
     wilson_score_ci,
 )
-from stegaqr.coding import get_ecc
+from stegaqr.coding import get_ecc, placement_permutation
 
 
 def build_models(mode, capacity_bits, device, perturbation_bound,
@@ -94,8 +100,13 @@ def _forward(enc, dec, cover, payload, mask, is_hybrid, distortion, chunk=32):
 
 
 def evaluate_checkpoint(ckpt_path, n=128, eccs=("rep3", "rep5"), seed=1234,
-                        device="cuda", chunk=32, quiet_zone=0):
-    """Evaluate a checkpoint and return a nested metrics dict."""
+                        device="cuda", chunk=32, quiet_zone=0,
+                        placement="native", placement_seed=0):
+    """Evaluate a checkpoint and return a nested metrics dict.
+
+    placement: grid placement of the ECC codeword for the message-decode rows
+    ('native' keeps pre-0.2.0 results comparable; 'interleaved' is the package default).
+    """
     device = device if torch.cuda.is_available() else "cpu"
     set_all_seeds(seed)
     torch.backends.cudnn.benchmark = True
@@ -145,6 +156,8 @@ def evaluate_checkpoint(ckpt_path, n=128, eccs=("rep3", "rep5"), seed=1234,
         }
 
     # ECC message-decode (under distortion -- the regime where it matters)
+    pos = placement_permutation(cap, placement, placement_seed)
+    out["ecc_placement"] = {"placement": placement, "seed": int(placement_seed)}
     out["ecc"] = {}
     for ecc_name in eccs:
         ecc = get_ecc(ecc_name)
@@ -155,10 +168,10 @@ def evaluate_checkpoint(ckpt_path, n=128, eccs=("rep3", "rep5"), seed=1234,
         msgs = np.random.randint(0, 2, size=(n, k)).astype(np.uint8)
         pbits = np.zeros((n, cap), dtype=np.uint8)
         for i in range(n):
-            pbits[i, :clen] = ecc.encode(msgs[i])
+            pbits[i, pos[:clen]] = ecc.encode(msgs[i])
         c2, p2, m2, _ = _gen_samples(n, cap, qrv, ms, ec, quiet_zone, device, payload_bits=pbits)
         logits, _ = _forward(enc, dec, c2, p2, m2, is_hybrid, dist, chunk)
-        dec_msgs = np.stack([ecc.decode(logits[i, :clen]) for i in range(n)])
+        dec_msgs = np.stack([ecc.decode(logits[i, pos[:clen]]) for i in range(n)])
         mfull = float(np.mean(np.all(dec_msgs == msgs, axis=1)))
         mlo, mhi = wilson_score_ci(int(round(mfull * n)), n)
         out["ecc"][ecc_name] = {
@@ -171,13 +184,14 @@ def evaluate_checkpoint(ckpt_path, n=128, eccs=("rep3", "rep5"), seed=1234,
 
 
 def evaluate_real_distortions(ckpt_path, n=128, presets=None, ecc_name="rep3",
-                              seed=1234, device="cuda", chunk=32, quiet_zone=0):
+                              seed=1234, device="cuda", chunk=32, quiet_zone=0,
+                              placement="native", placement_seed=0):
     """Evaluate robustness under REAL (non-differentiable) distortion presets.
 
     For each preset, applies the real operator (true JPEG, blur, resize, etc.) to
     the clean stego images, then decodes. Returns per-preset raw bit/full-decode and
     ECC message-decode. This is the credible robustness measurement (the training
-    distortion is a differentiable approximation).
+    distortion is a differentiable approximation). placement as in evaluate_checkpoint.
     """
     from stegaqr.realistic_distortion import make_presets
 
@@ -200,10 +214,11 @@ def evaluate_real_distortions(ckpt_path, n=128, presets=None, ecc_name="rep3",
 
     ecc = get_ecc(ecc_name)
     k = ecc.message_len(cap); clen = ecc.coded_len(k)
+    pos = placement_permutation(cap, placement, placement_seed)
     msgs = np.random.randint(0, 2, size=(n, k)).astype(np.uint8)
     pbits = np.zeros((n, cap), dtype=np.uint8)
     for i in range(n):
-        pbits[i, :clen] = ecc.encode(msgs[i])
+        pbits[i, pos[:clen]] = ecc.encode(msgs[i])
     cover, payload, mask, _ = _gen_samples(n, cap, qrv, ms, ec, quiet_zone, device, payload_bits=pbits)
 
     # clean stego (numpy) once
@@ -212,7 +227,9 @@ def evaluate_real_distortions(ckpt_path, n=128, presets=None, ecc_name="rep3",
 
     results = {"config": {"mode": mode, "capacity_bits": cap, "ecc": ecc_name,
                           "net_bits": int(k), "checkpoint": str(ckpt_path),
-                          "n": int(n), "seed_eval": int(seed)}, "presets": {}}
+                          "n": int(n), "seed_eval": int(seed),
+                          "placement": placement, "placement_seed": int(placement_seed)},
+               "presets": {}}
     for name in presets:
         fn = preset_fns[name]
         dist_np = np.stack([fn(stego_np[i]) for i in range(n)])      # (n,H,W,3)
@@ -226,7 +243,7 @@ def evaluate_real_distortions(ckpt_path, n=128, presets=None, ecc_name="rep3",
         pred = (logits > 0).astype(np.uint8)
         ba = float(np.mean(pred == gt))
         fdr = float(np.mean(np.all(pred == gt, axis=1)))
-        dec_msgs = np.stack([ecc.decode(logits[i, :clen]) for i in range(n)])
+        dec_msgs = np.stack([ecc.decode(logits[i, pos[:clen]]) for i in range(n)])
         mfull = float(np.mean(np.all(dec_msgs == msgs, axis=1)))
         lo, hi = wilson_score_ci(int(round(mfull * n)), n)
         results["presets"][name] = {

@@ -10,6 +10,10 @@ each image is upscaled for clean printing.
 Usage:
     python scripts/export_for_capture.py --checkpoint experiments/full/main_cross_channel_distort_s42/best_model.pt \
         --n 12 --ecc rep3 --out capture/exp1
+
+The grid placement of the coded bits (--placement, default interleaved since 0.2.0)
+is recorded in the manifest so decode_from_photo.py reads the codes back the same way.
+Manifests written before 0.2.0 have no placement key and are read as native.
 """
 
 from __future__ import annotations
@@ -27,7 +31,8 @@ from PIL import Image
 
 from stegaqr.utils.seed import set_all_seeds
 from stegaqr.utils.qr_utils import generate_cover_qr_rgb, get_qr_structure_mask
-from stegaqr.coding import get_ecc
+from stegaqr.coding import (DEFAULT_PLACEMENT, DEFAULT_PLACEMENT_SEED, PLACEMENTS, get_ecc,
+                            place_coded_bits, placement_permutation)
 from stegaqr.evaluation import build_models
 
 
@@ -36,6 +41,8 @@ def main():
     p.add_argument("--checkpoint", required=True)
     p.add_argument("--n", type=int, default=12)
     p.add_argument("--ecc", default="rep3")
+    p.add_argument("--placement", default=DEFAULT_PLACEMENT, choices=PLACEMENTS)
+    p.add_argument("--placement-seed", type=int, default=DEFAULT_PLACEMENT_SEED)
     p.add_argument("--out", default="capture/export")
     p.add_argument("--upscale", type=int, default=12, help="output pixels per stego pixel")
     p.add_argument("--quiet-zone", type=int, default=4, help="quiet-zone modules")
@@ -60,12 +67,14 @@ def main():
 
     ecc = get_ecc(args.ecc)
     k = ecc.message_len(cap); clen = ecc.coded_len(k)
+    pos = placement_permutation(cap, args.placement, args.placement_seed)
     qz = args.quiet_zone
 
     manifest = {"checkpoint": args.checkpoint, "mode": mode, "capacity_bits": cap,
                 "ecc": args.ecc, "net_bits": int(k), "module_size": ms,
                 "quiet_zone": qz, "upscale": args.upscale, "qr_version": qrv,
-                "ec_level": ec, "items": []}
+                "ec_level": ec, "placement": args.placement,
+                "placement_seed": int(args.placement_seed), "items": []}
 
     import random, string
     for i in range(args.n):
@@ -73,9 +82,9 @@ def main():
         # cover WITHOUT quiet zone for the model (matches training), add quiet zone after
         cover, _ = generate_cover_qr_rgb(text, qrv, ec, ms, quiet_zone=0)
         msg = np.random.randint(0, 2, k).astype(np.uint8)
-        coded = np.zeros(cap, dtype=np.uint8); coded[:clen] = ecc.encode(msg)
+        coded = place_coded_bits(ecc.encode(msg), cap, pos)
         c = torch.from_numpy(cover).permute(2, 0, 1).unsqueeze(0).to(device)
-        pl = torch.from_numpy(coded.astype(np.float32)).unsqueeze(0).to(device)
+        pl = torch.from_numpy(coded).unsqueeze(0).to(device)
         with torch.no_grad():
             if is_hybrid:
                 mask = torch.from_numpy(get_qr_structure_mask(qrv, ms)).unsqueeze(0).unsqueeze(0).to(device)
@@ -94,7 +103,8 @@ def main():
                                   "message_bits": msg.tolist()})
 
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2))
-    print(f"Exported {args.n} stego QR images + manifest.json to {out}")
+    print(f"Exported {args.n} stego QR images + manifest.json to {out} "
+          f"(placement {args.placement})")
     print(f"Print or display these, photograph them, then run decode_from_photo.py "
           f"on each photo (or a folder of photos).")
 
